@@ -3,7 +3,7 @@
 #
 # Prerequisites
 #
-#   sudo apt install python3-requests python3-psutil
+#   sudo apt install python3-requests python3-psutil python3-docker
 #
 
 import subprocess
@@ -13,7 +13,10 @@ import requests
 import json
 import time
 import logging
+from lib.docker_compose_manager import DockerComposeManager
 
+# Create an instance of the DockerComposeManager
+docker_manager = DockerComposeManager()
 
 # Function to gather system metrics
 def get_system_metrics():
@@ -116,6 +119,8 @@ def monitor_system(interval=10, threshold=90):
     # Send metrics once on startup
     metrics = get_system_metrics()
     send_metrics(metrics)
+
+    docker_manager.print_project_details()
 
     while True:
         metrics = get_system_metrics()
