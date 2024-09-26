@@ -1,0 +1,15 @@
+[Unit]
+Description=UptimeBeacon Agent
+Documentation=man:beacon_agent(1)
+Wants=network.target
+Before=network.target
+
+[Service]
+Type=exec
+ExecStart=/usr/bin/python3 -u /usr/bin/beacon-agent
+Restart=on-failure
+StandardOutput=append:/var/log/beacon-agent.log
+StandardError=append:/var/log/beacon-agent.log
+
+[Install]
+WantedBy=multi-user.target

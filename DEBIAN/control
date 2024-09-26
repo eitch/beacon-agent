@@ -1,0 +1,10 @@
+Package: beacon-agent
+Version: 0.1.0
+Architecture: all
+Section: python
+Priority: optional
+Installed-Size: 10
+Maintainer: Robert von Burg <eitch@eitchnet.ch>
+Depends: python3, python3-requests, python3-psutil
+Description: This is the agent for Uptime Beacon
+ It allows to send metrics of a system to a UptimeBeacon server

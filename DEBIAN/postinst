@@ -1,0 +1,24 @@
+#!/bin/bash -e
+
+if [ "$1" = "configure" ] || [ "$1" = "abort-upgrade" ] || [ "$1" = "abort-deconfigure" ] || [ "$1" = "abort-remove" ] ; then
+	deb-systemd-helper unmask 'beacon-agent.service' >/dev/null || true
+	if deb-systemd-helper --quiet was-enabled 'beacon-agent.service'; then
+		deb-systemd-helper enable 'beacon-agent.service' >/dev/null || true
+	else
+		deb-systemd-helper update-state 'beacon-agent.service' >/dev/null || true
+	fi
+fi
+
+if [ "$1" = "configure" ] || [ "$1" = "abort-upgrade" ] || [ "$1" = "abort-deconfigure" ] || [ "$1" = "abort-remove" ] ; then
+	if [ -d /run/systemd/system ]; then
+		systemctl --system daemon-reload >/dev/null || true
+		if [ -n "$2" ]; then
+			_dh_action=restart
+		else
+			_dh_action=start
+		fi
+		deb-systemd-invoke $_dh_action 'beacon-agent.service' >/dev/null || true
+	fi
+fi
+
+exit 0

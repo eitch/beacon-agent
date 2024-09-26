@@ -1,0 +1,15 @@
+.\"                                      Hey, EMACS: -*- nroff -*-
+.\" (C) Copyright: 2024 Robert von Burg <eitch@eitchnet.ch>
+.\"
+.TH beacon_agent "1" "__DATE__" "beacon_agent __VERSION__" "beacon_agent description"
+.SH NAME
+beacon_agent \- Agent to send system metrics periodically to a UptimeBeacon server
+.SH SYNOPSIS
+.B beacon_agent
+.br
+.SH DESCRIPTION
+Agent to send system metrics periodically to a UptimeBeacon server
+.SH AUTHORS
+Robert von Burg <eitch@eitchnet.ch>
+.PP
+This document was written by Robert von Burg <eitch@eitchnet.ch>.
