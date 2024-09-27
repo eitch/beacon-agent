@@ -1,11 +1,11 @@
-# Import the DockerComposeManager class from docker_compose_manager.py
+# Import the class from the file where it's defined (if in a different file, e.g., docker_manager.py)
 from docker_compose_manager import DockerComposeManager
 
 # Create an instance of the DockerComposeManager
 manager = DockerComposeManager()
 
-# Call the method to print all Docker Compose project details
-manager.print_project_details()
+# Fetch all Docker Compose projects
+projects = manager.list_compose_projects()
 
-# Or, to get the details of a specific project (replace 'your_project_name' with the actual name)
-# manager.print_project_details("your_project_name")
+# Print the project details
+manager.print_projects_details(projects)

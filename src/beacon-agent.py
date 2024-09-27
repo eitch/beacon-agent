@@ -13,9 +13,8 @@ import requests
 import json
 import time
 import logging
-from lib.docker_compose_manager import DockerComposeManager
 
-# Create an instance of the DockerComposeManager
+from lib.docker_compose_manager import DockerComposeManager
 docker_manager = DockerComposeManager()
 
 # Function to gather system metrics
@@ -73,7 +72,7 @@ def count_upgradable_packages():
     try:
         # Run the command to simulate upgrade and capture the output
         result = subprocess.run(
-            ['apt-get', '--just-print', 'upgrade'],
+            ['apt-get', '--just-print', 'dist-upgrade'],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True
@@ -87,7 +86,7 @@ def count_upgradable_packages():
         non_security_count = 0
 
         # Regular expression to match package lines
-        package_regex = re.compile(r'^\s*Inst\s+(^\s+)\s+\[.*\]')
+        package_regex = re.compile(r'^\s*Inst\s+.*')
 
         for line in lines:
             match = package_regex.match(line)
@@ -120,7 +119,9 @@ def monitor_system(interval=10, threshold=90):
     metrics = get_system_metrics()
     send_metrics(metrics)
 
-    docker_manager.print_project_details()
+    # Fetch all Docker Compose projects
+    projects = docker_manager.list_compose_projects()
+    docker_manager.print_projects_details(projects)
 
     while True:
         metrics = get_system_metrics()

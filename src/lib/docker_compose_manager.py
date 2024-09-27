@@ -1,89 +1,120 @@
-import docker
-import logging
+import subprocess
+import json
 
 class DockerComposeManager:
     def __init__(self):
-        """Initialize the Docker client."""
-        self.log = logging.getLogger(__name__)
-        self.log.info("Started Beacon-Agent")
-        self.client = docker.from_env()
+        """Initialize the DockerComposeManager."""
+        pass
+
+    def run_command(self, command):
+        """
+        Run a shell command and return the output.
+        Handles permission errors and other issues gracefully.
+        """
+        try:
+            result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+            if result.returncode != 0:
+                # Check for permission denied error in stderr
+                if "permission denied" in result.stderr.lower():
+                    print(f"Permission denied while running command: {' '.join(command)}")
+                else:
+                    print(f"Error running command {command}: {result.stderr}")
+                return None
+
+            return result.stdout
+
+        except PermissionError as e:
+            print(f"PermissionError: {e}. You may need elevated privileges to run this command.")
+            return None
+
+        except subprocess.CalledProcessError as e:
+            print(f"Failed to execute command: {e}")
+            return None
+
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+            return None
+
+
+    def get_docker_containers(self):
+        """Get details of all running Docker containers."""
+        command = ["docker", "ps", "--format", "{{json .}}"]
+        output = self.run_command(command)
+
+        if not output:
+            return []
+
+        containers = []
+        # Each line is a JSON object representing a container, so parse each one
+        for line in output.strip().split('\n'):
+            try:
+                json_object = json.loads(line)
+                print(json_object)
+                containers.append(json_object)  # Parse each line as JSON
+            except json.JSONDecodeError:
+                print(f"Skipping malformed line: {line}")
+        return containers
 
     def list_compose_projects(self):
-        """
-        List all Docker Compose projects and their container details.
-
-        Returns:
-            projects (dict): A dictionary of Docker Compose projects,
-                             where the key is the project name and
-                             the value is a list of container details.
-        """
-        containers = self.client.containers.list()  # List all running containers
+        """List Docker Compose projects and their details."""
+        containers = self.get_docker_containers()
         projects = {}
 
         for container in containers:
-            labels = container.labels
-            # Docker Compose projects are identified by this label
+            # Docker Compose projects usually have the project name as a label or part of the container name
+            labels = parse_docker_labels(container.get('Labels', {}))
             compose_project = labels.get('com.docker.compose.project')
+            if not compose_project:
+                compose_project = container['Names'].split("_")[0]  # Guessing from container name
 
-            if compose_project:
-                container_details = {
-                    'container_id': container.id,
-                    'image': container.image.tags[0] if container.image.tags else container.image.short_id,
-                    'status': container.status,
-                    'name': container.name,
-                }
+            # Collect container details
+            container_details = {
+                'container_id': container['ID'],
+                'image': container['Image'],
+                'status': container['Status'],
+                'name': container['Names'],
+            }
 
-                if compose_project not in projects:
-                    projects[compose_project] = []
+            if compose_project not in projects:
+                projects[compose_project] = []
 
-                projects[compose_project].append(container_details)
+            projects[compose_project].append(container_details)
 
         return projects
 
-    def get_project_containers(self, project_name):
-        """
-        Get the details of all containers within a specific Docker Compose project.
+    def print_projects_details(self, projects):
+        """Print details of each Docker Compose project."""
+        if not projects:
+            print("No Docker Compose projects found.")
+            return
 
-        Args:
-            project_name (str): The name of the Docker Compose project.
+        for project, containers in projects.items():
+            print(f"Project: {project}")
+            for container in containers:
+                print(f"  Container Name: {container['name']}")
+                print(f"    Image: {container['image']}")
+                print(f"    Status: {container['status']}")
+                print(f"    Container ID: {container['container_id']}")
+            print()
 
-        Returns:
-            containers (list): A list of container details within the project.
-        """
-        projects = self.list_compose_projects()
-        return projects.get(project_name, [])
+def parse_docker_labels(label_str):
+    """
+    Parse the Docker labels string into a dictionary.
 
-    def print_project_details(self, project_name=None):
-        """
-        Print the details of a specific Docker Compose project, or all projects if none is specified.
+    Args:
+        label_str (str): The Docker labels string (comma-separated key-value pairs).
 
-        Args:
-            project_name (str, optional): The name of the Docker Compose project.
-                                          If None, details of all projects will be printed.
-        """
-        if project_name:
-            containers = self.get_project_containers(project_name)
-            if containers:
-                self.log.info(f"Project: {project_name}")
-                for container in containers:
-                    self.log.info(f"  Container Name: {container['name']}")
-                    self.log.info(f"    Image: {container['image']}")
-                    self.log.info(f"    Status: {container['status']}")
-                    self.log.info(f"    Container ID: {container['container_id']}")
-                self.log.info()
-            else:
-                self.log.info(f"No containers found for project: {project_name}")
-        else:
-            projects = self.list_compose_projects()
-            if not projects:
-                self.log.info("No Docker Compose projects found.")
-                return
+    Returns:
+        dict: Parsed labels as a dictionary.
+    """
+    # Split the string by commas to get individual key-value pairs
+    label_pairs = label_str.split(',')
 
-            for project, containers in projects.items():
-                self.log.info(f"Project: {project}")
-                for container in containers:
-                    self.log.info(f"  Container Name: {container['name']}")
-                    self.log.info(f"    Image: {container['image']}")
-                    self.log.info(f"    Status: {container['status']}")
-                    self.log.info(f"    Container ID: {container['container_id']}")
-                self.log.info()
+    # Create a dictionary from the key-value pairs
+    labels_dict = {}
+    for pair in label_pairs:
+        key, value = pair.split('=', 1)  # Split each pair at the first '=' sign
+        labels_dict[key] = value
+
+    return labels_dict
