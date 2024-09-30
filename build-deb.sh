@@ -14,7 +14,7 @@ echo "INFO: Building package ${PACKAGE_NAME} with version ${VERSION}"
 echo -e "INFO: Cleaning build..."
 rm -rf "${DIST}"
 rm -rf "${SOURCE_FILES}/__pycache__"
-rm -rf "${SOURCE_FILES}/lib/__pycache__"
+find "${SOURCE_FILES}" -type d -name '__pycache__' -exec rm -rf {} +
 mkdir -p "${TARGET}/"
 
 # copy files
