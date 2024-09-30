@@ -25,6 +25,7 @@ class SystemMetricsReader:
     def __init__(self):
         self.docker_compose_reader = DockerComposeReader()
         self.smartctl_reader = SmartCtlReader()
+        self.prev_cpu_times = None
         self.sys_info = {}
         self.last_metrics = {}
 
@@ -59,11 +60,44 @@ class SystemMetricsReader:
 
         return df_dict
 
+    def get_cpu_count(self):
+        # Read the /proc/cpuinfo content and parse it to count CPUs
+        cpu_count = 0
+        with open('/proc/cpuinfo', 'r') as f:
+            for line in f:
+                if line.startswith('processor'):
+                    cpu_count += 1
+        return cpu_count
+
+    def read_cpu_times(self):
+        with open('/proc/stat', 'r') as f:
+            first_line = f.readline()
+            # Split the line into components
+            cpu_times = list(map(int, first_line.split()[1:]))
+        return cpu_times
+
+    def calculate_cpu_load(self, interval=1):
+        prev_cpu_times = self.prev_cpu_times
+        if self.prev_cpu_times is None:
+            # Get initial CPU times
+            prev_cpu_times = self.read_cpu_times()
+            time.sleep(1)
+        curr_times = self.read_cpu_times()
+
+        # Calculate the difference in times
+        idle_time = curr_times[3] - prev_cpu_times[3]  # Idle time
+        total_time = sum(curr_times) - sum(prev_cpu_times)  # Total time
+
+        # Calculate CPU load percentage
+        cpu_load = (1 - (idle_time / total_time)) * 100
+        self.prev_cpu_times = curr_times
+        return cpu_load
+
     # Function to gather metrics from /proc
     def get_sys_info_from_proc(self):
-
-        cpu_load_percent = 0
-        cpu_count = 0
+        cpu_count = self.get_cpu_count()
+        cpu_load_percent = self.calculate_cpu_load()
+        logging.info(f"cpu_load_percent: {cpu_load_percent}")
 
         # Get memory information from /proc/meminfo
         with open('/proc/meminfo', 'r') as f:
