@@ -1,10 +1,11 @@
 import subprocess
 import json
+import logging
 
 class DockerComposeManager:
     def __init__(self):
         """Initialize the DockerComposeManager."""
-        pass
+        self.log = logging.getLogger(__name__)
 
     def run_command(self, command):
         """
@@ -17,25 +18,24 @@ class DockerComposeManager:
             if result.returncode != 0:
                 # Check for permission denied error in stderr
                 if "permission denied" in result.stderr.lower():
-                    print(f"Permission denied while running command: {' '.join(command)}")
+                    self.log.error(f"Permission denied while running command: {' '.join(command)}")
                 else:
-                    print(f"Error running command {command}: {result.stderr}")
+                    self.log.error(f"Error running command {command}: {result.stderr}")
                 return None
 
             return result.stdout
 
         except PermissionError as e:
-            print(f"PermissionError: {e}. You may need elevated privileges to run this command.")
+            self.log.error(f"PermissionError: {e}. You may need elevated privileges to run this command.")
             return None
 
         except subprocess.CalledProcessError as e:
-            print(f"Failed to execute command: {e}")
+            self.log.error(f"Failed to execute command: {e}")
             return None
 
         except Exception as e:
-            print(f"An unexpected error occurred: {e}")
+            self.log.error(f"An unexpected error occurred: {e}")
             return None
-
 
     def get_docker_containers(self):
         """Get details of all running Docker containers."""
@@ -50,10 +50,10 @@ class DockerComposeManager:
         for line in output.strip().split('\n'):
             try:
                 json_object = json.loads(line)
-                print(json_object)
+                # print(json_object)
                 containers.append(json_object)  # Parse each line as JSON
             except json.JSONDecodeError:
-                print(f"Skipping malformed line: {line}")
+                self.log.warning(f"Skipping malformed line: {line}")
         return containers
 
     def list_compose_projects(self):
@@ -63,7 +63,7 @@ class DockerComposeManager:
 
         for container in containers:
             # Docker Compose projects usually have the project name as a label or part of the container name
-            labels = parse_docker_labels(container.get('Labels', {}))
+            labels = self.parse_docker_labels(container.get('Labels', {}))
             compose_project = labels.get('com.docker.compose.project')
             if not compose_project:
                 compose_project = container['Names'].split("_")[0]  # Guessing from container name
@@ -86,35 +86,36 @@ class DockerComposeManager:
     def print_projects_details(self, projects):
         """Print details of each Docker Compose project."""
         if not projects:
-            print("No Docker Compose projects found.")
+            self.log.info("No Docker Compose projects found.")
             return
 
         for project, containers in projects.items():
-            print(f"Project: {project}")
+            self.log.info(f"Project: {project}")
             for container in containers:
-                print(f"  Container Name: {container['name']}")
-                print(f"    Image: {container['image']}")
-                print(f"    Status: {container['status']}")
-                print(f"    Container ID: {container['container_id']}")
-            print()
+                self.log.info(f"  Container Name: {container['name']}")
+                self.log.info(f"    Image: {container['image']}")
+                self.log.info(f"    Status: {container['status']}")
+                self.log.info(f"    Container ID: {container['container_id']}")
+            self.log.info()
 
-def parse_docker_labels(label_str):
-    """
-    Parse the Docker labels string into a dictionary.
+    @staticmethod
+    def parse_docker_labels(label_str):
+        """
+        Parse the Docker labels string into a dictionary.
 
-    Args:
-        label_str (str): The Docker labels string (comma-separated key-value pairs).
+        Args:
+            label_str (str): The Docker labels string (comma-separated key-value pairs).
 
-    Returns:
-        dict: Parsed labels as a dictionary.
-    """
-    # Split the string by commas to get individual key-value pairs
-    label_pairs = label_str.split(',')
+        Returns:
+            dict: Parsed labels as a dictionary.
+        """
+        # Split the string by commas to get individual key-value pairs
+        label_pairs = label_str.split(',')
 
-    # Create a dictionary from the key-value pairs
-    labels_dict = {}
-    for pair in label_pairs:
-        key, value = pair.split('=', 1)  # Split each pair at the first '=' sign
-        labels_dict[key] = value
+        # Create a dictionary from the key-value pairs
+        labels_dict = {}
+        for pair in label_pairs:
+            key, value = pair.split('=', 1)  # Split each pair at the first '=' sign
+            labels_dict[key] = value
 
-    return labels_dict
+        return labels_dict
