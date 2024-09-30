@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/python3 -u
 
 #
 # Prerequisites
@@ -11,7 +11,7 @@ import json
 import time
 import logging
 
-from lib.system_metrics_reader import SystemMetricsReader
+from beacon_agent.system_metrics_reader import SystemMetricsReader
 
 
 class BeaconAgent:

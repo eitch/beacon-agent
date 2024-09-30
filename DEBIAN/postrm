@@ -8,3 +8,10 @@ if [ "$1" = "purge" ]; then
 		deb-systemd-helper purge 'beacon-agent.service' >/dev/null || true
 	fi
 fi
+
+if [ "$1" = "remove" ] || [ "$1" = "purge" ]; then
+		# Remove __pycache__ directories for the installed package
+    find /usr/lib/python3/dist-packages/beacon_agent -type d -name '__pycache__' -exec rm -rf {} +
+fi
+
+exit 0
