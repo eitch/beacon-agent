@@ -2,10 +2,9 @@ import subprocess
 import json
 import logging
 
-class DockerComposeManager:
+class DockerComposeReader:
     def __init__(self):
-        """Initialize the DockerComposeManager."""
-        self.log = logging.getLogger(__name__)
+        """Initialize the DockerComposeReader."""
 
     def run_command(self, command):
         """
@@ -18,23 +17,23 @@ class DockerComposeManager:
             if result.returncode != 0:
                 # Check for permission denied error in stderr
                 if "permission denied" in result.stderr.lower():
-                    self.log.error(f"Permission denied while running command: {' '.join(command)}")
+                    logging.error(f"Permission denied while running command: {' '.join(command)}")
                 else:
-                    self.log.error(f"Error running command {command}: {result.stderr}")
+                    logging.error(f"Error running command {command}: {result.stderr}")
                 return None
 
             return result.stdout
 
         except PermissionError as e:
-            self.log.error(f"PermissionError: {e}. You may need elevated privileges to run this command.")
+            logging.error(f"PermissionError: {e}. You may need elevated privileges to run this command.")
             return None
 
         except subprocess.CalledProcessError as e:
-            self.log.error(f"Failed to execute command: {e}")
+            logging.error(f"Failed to execute command: {e}")
             return None
 
         except Exception as e:
-            self.log.error(f"An unexpected error occurred: {e}")
+            logging.error(f"An unexpected error occurred: {e}")
             return None
 
     def get_docker_containers(self):
@@ -86,17 +85,17 @@ class DockerComposeManager:
     def print_projects_details(self, projects):
         """Print details of each Docker Compose project."""
         if not projects:
-            self.log.info("No Docker Compose projects found.")
+            logging.info("No Docker Compose projects found.")
             return
 
         for project, containers in projects.items():
-            self.log.info(f"Project: {project}")
+            logging.info(f"Project: {project}")
             for container in containers:
-                self.log.info(f"  Container Name: {container['name']}")
-                self.log.info(f"    Image: {container['image']}")
-                self.log.info(f"    Status: {container['status']}")
-                self.log.info(f"    Container ID: {container['container_id']}")
-            self.log.info()
+                logging.info(f"  Container Name: {container['name']}")
+                logging.info(f"    Image: {container['image']}")
+                logging.info(f"    Status: {container['status']}")
+                logging.info(f"    Container ID: {container['container_id']}")
+            logging.info("")
 
     @staticmethod
     def parse_docker_labels(label_str):

@@ -14,19 +14,38 @@ import logging
 from beacon_agent.system_metrics_reader import SystemMetricsReader
 
 
+class CustomFormatter(logging.Formatter):
+    def __init__(self, fixed_length=20, *args, **kwargs):
+        self.fixed_length = fixed_length
+        super().__init__(*args, **kwargs)
+
+    def format(self, record):
+        # Format the module name to ensure it is exactly fixed_length characters
+        record.module = f"{record.module:<{self.fixed_length}}"[:self.fixed_length]  # Pad with spaces and truncate if necessary
+        return super().format(record)
+
+
 class BeaconAgent:
     def __init__(self, push_url, interval=10, threshold=90):
-        logging.basicConfig(level=logging.INFO,
-                            format='%(asctime)s.%(msecs)03d %(module)s %(levelname)s:\t%(message)s',
-                            datefmt='%Y-%m-%d %H:%M:%S'
-                            )
+        logger = logging.root
+        logger.setLevel(logging.INFO)
+
+        # Create console handler
+        ch = logging.StreamHandler()
+        ch.setLevel(logging.INFO)
+
+        # Create custom formatter with a max length of 10 for module names
+        formatter = CustomFormatter(datefmt='%Y-%m-%d %H:%M:%S', fmt='%(asctime)s.%(msecs)03d %(module)s %(levelname)s: %(message)s', fixed_length=20)
+        ch.setFormatter(formatter)
+
+        # Add handler to the logger
+        logger.addHandler(ch)
         self.push_url = push_url
         self.interval = interval
         self.threshold = threshold
-        self.log = logging.getLogger(__name__)
         self.system_metrics_reader = SystemMetricsReader()
         self.metrics = {}
-        self.log.info("Started Beacon-Agent")
+        logging.info("Started Beacon-Agent")
 
     def check_threshold(self, metrics):
         return (metrics['cpu_load_percent'] > self.threshold or
@@ -45,19 +64,19 @@ class BeaconAgent:
             time.sleep(self.interval)
 
     def send_metrics(self, metrics):
-        self.log.info("Data sent successfully:")
+        logging.info("Data sent successfully:")
         self.pretty_print_metrics(metrics)
         return
         headers = {'Content-Type': 'application/json'}
         try:
             response = requests.post(self.push_url, data=json.dumps(metrics), headers=headers)
             if response.status_code == 200:
-                self.log.info("Data sent successfully:")
+                logging.info("Data sent successfully:")
                 self.pretty_print_metrics(metrics)
             else:
-                self.log.info(f"Failed to send data. Status code: {response.status_code}")
+                logging.info(f"Failed to send data. Status code: {response.status_code}")
         except requests.exceptions.RequestException as e:
-            self.log.info(f"Error sending data: {e}")
+            logging.info(f"Error sending data: {e}")
 
     @staticmethod
     def pretty_print_metrics(metrics):
@@ -69,8 +88,7 @@ if __name__ == "__main__":
     url = 'https://example.com/metrics'
     agent = BeaconAgent(url, interval=10, threshold=90)
 
-    log = logging.getLogger(__name__)
     try:
         agent.monitor_system()
     except KeyboardInterrupt:
-        log.info("\nMonitoring interrupted. Exiting gracefully...")
+        logging.info("\nMonitoring interrupted. Exiting gracefully...")

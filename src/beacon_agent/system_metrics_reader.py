@@ -12,13 +12,14 @@ import psutil
 import time
 import logging
 
-from .docker_compose_manager import DockerComposeManager
+from .docker_compose_reader import DockerComposeReader
+from .smartctl_reader import SmartCtlReader
 
 
 class SystemMetricsReader:
     def __init__(self):
-        self.docker_manager = DockerComposeManager()
-        self.log = logging.getLogger(__name__)
+        self.docker_compose_reader = DockerComposeReader()
+        self.smartctl_reader = SmartCtlReader()
         self.last_metrics = {}
 
     def get_system_metrics(self):
@@ -36,11 +37,14 @@ class SystemMetricsReader:
         # annoyingly long-running:
         security_count, non_security_count = self.count_upgradable_packages()
 
+        # read S.M.A.R.T data for all devices
+        smart_data = self.smartctl_reader.read_smartdata_for_all_devices()
+
         # Fetch all Docker Compose projects
-        projects = self.docker_manager.list_compose_projects()
+        projects = self.docker_compose_reader.list_compose_projects()
 
         elapsed_time = time.time() - start_time
-        self.log.info(f"Metrics load took: {elapsed_time:.3f} seconds")
+        logging.info(f"Metrics load took: {elapsed_time:.3f} seconds")
 
         self.last_metrics = {
             'num_cpu_cores': num_cpu_cores,
@@ -65,6 +69,7 @@ class SystemMetricsReader:
             },
             'package_upgrade_count': non_security_count + security_count,
             'package_security_upgrade_count': security_count,
+            'smart_monitor_data': smart_data,
             'docker_compose_projects': projects
         }
 
@@ -91,7 +96,7 @@ class SystemMetricsReader:
             )
             elapsed_time = time.time() - start_time
             if elapsed_time > 3:
-                self.log.info(f"Process took: {elapsed_time:.3f} seconds")
+                logging.info(f"Process took: {elapsed_time:.3f} seconds")
 
             # Split the output into lines
             lines = result.stdout.strip().split('\n')
@@ -115,5 +120,5 @@ class SystemMetricsReader:
             return security_count, non_security_count
 
         except Exception as e:
-            self.log.info(f"An error occurred: {e}")
+            logging.error(f"An error occurred: {e}")
             return None, None
