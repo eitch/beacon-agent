@@ -2,6 +2,7 @@ import subprocess
 import json
 import logging
 
+
 class DockerComposeReader:
     def __init__(self):
         """Initialize the DockerComposeReader."""
@@ -73,6 +74,7 @@ class DockerComposeReader:
                 'image': container['Image'],
                 'status': container['Status'],
                 'name': container['Names'],
+                'labels': labels
             }
 
             if compose_project not in projects:
@@ -91,11 +93,8 @@ class DockerComposeReader:
         for project, containers in projects.items():
             logging.info(f"Project: {project}")
             for container in containers:
-                logging.info(f"  Container Name: {container['name']}")
-                logging.info(f"    Image: {container['image']}")
-                logging.info(f"    Status: {container['status']}")
-                logging.info(f"    Container ID: {container['container_id']}")
-            logging.info("")
+                logging.info(f"  Container: {container['name']}:\n{json.dumps(container, indent=4)}")
+                logging.info("")
 
     @staticmethod
     def parse_docker_labels(label_str):
@@ -108,12 +107,22 @@ class DockerComposeReader:
         Returns:
             dict: Parsed labels as a dictionary.
         """
+
+        # before we can do such splitting, we need to fix broken labels:
+        label_str = label_str.replace(", ", " ")
+
         # Split the string by commas to get individual key-value pairs
+        if not label_str:
+            logging.warning(f"No Docker labels string provided: {label_str}")
+            return {}
         label_pairs = label_str.split(',')
 
         # Create a dictionary from the key-value pairs
         labels_dict = {}
         for pair in label_pairs:
+            if "=" not in pair:
+                logging.warning(f"Invalid Docker label: {pair}")
+                continue
             key, value = pair.split('=', 1)  # Split each pair at the first '=' sign
             labels_dict[key] = value
 

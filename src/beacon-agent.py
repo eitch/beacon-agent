@@ -21,7 +21,8 @@ class CustomFormatter(logging.Formatter):
 
     def format(self, record):
         # Format the module name to ensure it is exactly fixed_length characters
-        record.module = f"{record.module:<{self.fixed_length}}"[:self.fixed_length]  # Pad with spaces and truncate if necessary
+        record.module = f"{record.module:<{self.fixed_length}}"[
+                        :self.fixed_length]  # Pad with spaces and truncate if necessary
         return super().format(record)
 
 
@@ -35,7 +36,9 @@ class BeaconAgent:
         ch.setLevel(logging.INFO)
 
         # Create custom formatter with a max length of 10 for module names
-        formatter = CustomFormatter(datefmt='%Y-%m-%d %H:%M:%S', fmt='%(asctime)s.%(msecs)03d %(module)s %(levelname)s: %(message)s', fixed_length=20)
+        formatter = CustomFormatter(datefmt='%Y-%m-%d %H:%M:%S',
+                                    fmt='%(asctime)s.%(msecs)03d %(module)s %(levelname)s: %(message)s',
+                                    fixed_length=20)
         ch.setFormatter(formatter)
 
         # Add handler to the logger
@@ -48,9 +51,25 @@ class BeaconAgent:
         logging.info("Started Beacon-Agent")
 
     def check_threshold(self, metrics):
-        return (metrics['cpu_load_percent'] > self.threshold or
-                metrics['memory']['percent'] > self.threshold or
-                metrics['disk']['percent'] > self.threshold)
+        most_filled_fs = max(metrics['disk_usage'], key=lambda x: x['used_percent'])
+        logging.info(
+            f"Most filled file system is mounted on {most_filled_fs['mount_point']} at {most_filled_fs['used_percent']}% used")
+
+        cpu_threshold = metrics['cpu_load_percent'] > self.threshold
+        memory_threshold = metrics['memory_info']['percent']
+        disk_threshold = most_filled_fs['used_percent']
+
+        if cpu_threshold > self.threshold:
+            logging.warning(f"CPU threshold reached at {cpu_threshold}%")
+        if memory_threshold > self.threshold:
+            logging.warning(f"Memory threshold reached at {memory_threshold}%")
+        if disk_threshold > self.threshold:
+            logging.warning(
+                f"Disk threshold reached at {most_filled_fs['mount_point']} at {most_filled_fs['used_percent']}% used")
+
+        return (cpu_threshold > self.threshold or
+                memory_threshold > self.threshold or
+                disk_threshold > self.threshold)
 
     def monitor_system(self):
         # Send metrics once on startup

@@ -5,6 +5,7 @@ import glob
 import re
 import json
 
+
 class SmartCtlReader:
     def __init__(self):
         """Initialize the DockerComposeReader."""
@@ -35,16 +36,44 @@ class SmartCtlReader:
         if not self.check_smartctl_available():
             return {"error": "smartctl command is not available. Please install smartmontools."}
 
+        smart_data = {'is_nvme': 'false'}
+
         try:
             # Execute the smartctl command
+            result = subprocess.run(['smartctl', '-H', device], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                    text=True)
+            if result.returncode != 255:
+                if result.stderr:
+                    return {"error": f"{result.stderr.strip()}"}
+                return {"error": f"{result.stdout.strip()}"}
+
+            # evaluate smart health status
+            output_lines = result.stdout.splitlines()
+            status = 'NOK'
+            for line in output_lines:
+                if line.startswith('SMART Health Status:') and line == "SMART Health Status: OK":
+                    status = "OK"
+                    break
+            smart_data['smart_health_status'] = status
+
+            # try and get additional data
             result = subprocess.run(['smartctl', '-a', device], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                     text=True)
             if result.returncode != 0:
-                return {"error": f"Failed to get S.M.A.R.T data for {device}. Error: {result.stderr}"}
+                if "Device does not support Self Test logging" not in result.stdout:
+                    if result.stderr:
+                        return {"error": f"{result.stderr.strip()}"}
+                    return {"error": f"{result.stdout.strip()}"}
+
+                smart_data['smart_data_status'] = 'Not available'
+                return smart_data
+
+            smart_data['smart_data_status'] = 'Available'
+            smart_data['data'] = {}
+            data = smart_data['data']
 
             # Process the output and parse the necessary fields
             output_lines = result.stdout.splitlines()
-            smart_data = {'is_nvme': 'false'}
 
             for line in output_lines:
                 # Example parsing logic: collect any lines starting with 'ID#', which typically contains attributes.
@@ -60,7 +89,7 @@ class SmartCtlReader:
                 if len(parts) > 9:
                     attr_id = parts[0]
                     attr_name = parts[1]
-                    smart_data[attr_name] = {
+                    data[attr_name] = {
                         "ID": attr_id,
                         "FLAG": parts[2],
                         "VALUE": parts[3],
@@ -88,6 +117,8 @@ class SmartCtlReader:
         Returns:
         dict: A dictionary containing the S.M.A.R.T. status information, or an error message if unsuccessful.
         """
+        logging.info(f"Getting NVME status data for {device}...")
+
         status = {'is_nvme': 'true'}
 
         try:
@@ -154,7 +185,7 @@ class SmartCtlReader:
             return {"error": "smartctl command is not available. Please install smartmontools."}
 
         self.list_devices()
-        logging.info(f"Getting S.M.A.R.T. data for devices: {self.devices}...")
+        logging.info(f"Getting S.M.A.R.T. data for devices: {self.devices}")
 
         self.smart_data = {}
         for device in self.devices:
