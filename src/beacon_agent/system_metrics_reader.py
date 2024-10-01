@@ -19,10 +19,12 @@ except ImportError:
 
 from .docker_compose_reader import DockerComposeReader
 from .smartctl_reader import SmartCtlReader
+from .system_info_reader import SystemInfoReader
 
 
 class SystemMetricsReader:
     def __init__(self):
+        self.system_info_reader = SystemInfoReader()
         self.docker_compose_reader = DockerComposeReader()
         self.smartctl_reader = SmartCtlReader()
         self.prev_cpu_times = None
@@ -95,6 +97,7 @@ class SystemMetricsReader:
 
     # Function to gather metrics from /proc
     def get_sys_info_from_proc(self):
+
         cpu_count = self.get_cpu_count()
         cpu_load_percent = self.calculate_cpu_load()
         logging.info(f"cpu_load_percent: {cpu_load_percent}")
@@ -170,6 +173,8 @@ class SystemMetricsReader:
         # read the system info
         sys_info = self.read_sys_info()
 
+        system_info = self.system_info_reader.get_system_info()
+
         # Get CPU load from /proc/loadavg
         load_avg_1, load_avg_5, load_avg_15 = self.get_load_average()
 
@@ -186,6 +191,7 @@ class SystemMetricsReader:
         logging.info(f"Metrics load took: {elapsed_time:.3f} seconds")
 
         self.last_metrics = {
+            'system_info': system_info,
             'num_cpu_cores': sys_info['num_cpu_cores'],
             'cpu_load_percent': sys_info['cpu_load_percent'],
             'max_cpu_load_percent': sys_info['max_cpu_load_percent'],
