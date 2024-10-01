@@ -120,5 +120,5 @@ class SystemInfoReader:
 
 
 if __name__ == "__main__":
-    system_info = SystemInfo()
+    system_info = SystemInfoReader()
     print(system_info.get_system_info())
