@@ -11,19 +11,8 @@ import json
 import time
 import logging
 
+from beacon_agent.customer_logging_formatter import CustomLoggingFormatter
 from beacon_agent.system_metrics_reader import SystemMetricsReader
-
-
-class CustomFormatter(logging.Formatter):
-    def __init__(self, fixed_length=20, *args, **kwargs):
-        self.fixed_length = fixed_length
-        super().__init__(*args, **kwargs)
-
-    def format(self, record):
-        # Format the module name to ensure it is exactly fixed_length characters
-        record.module = f"{record.module:<{self.fixed_length}}"[
-                        :self.fixed_length]  # Pad with spaces and truncate if necessary
-        return super().format(record)
 
 
 class BeaconAgent:
@@ -36,9 +25,9 @@ class BeaconAgent:
         ch.setLevel(logging.INFO)
 
         # Create custom formatter with a max length of 10 for module names
-        formatter = CustomFormatter(datefmt='%Y-%m-%d %H:%M:%S',
-                                    fmt='%(asctime)s.%(msecs)03d %(module)s %(levelname)s: %(message)s',
-                                    fixed_length=20)
+        formatter = CustomLoggingFormatter(datefmt='%Y-%m-%d %H:%M:%S',
+                                           fmt='%(asctime)s.%(msecs)03d %(module)s %(levelname)s: %(message)s',
+                                           fixed_length=15)
         ch.setFormatter(formatter)
 
         # Add handler to the logger
@@ -48,11 +37,10 @@ class BeaconAgent:
         self.threshold = threshold
         self.system_metrics_reader = SystemMetricsReader()
         self.metrics = {}
-        logging.info("Started Beacon-Agent")
 
     def check_threshold(self, metrics):
         most_filled_fs = max(metrics['disk_usage'], key=lambda x: x['used_percent'])
-        logging.info(
+        logging.debug(
             f"Most filled file system is mounted on {most_filled_fs['mount_point']} at {most_filled_fs['used_percent']}% used")
 
         cpu_threshold = metrics['cpu_load_percent'] > self.threshold
@@ -72,12 +60,18 @@ class BeaconAgent:
                 disk_threshold > self.threshold)
 
     def monitor_system(self):
+        logging.info(f"Beacon-Agent started and refreshing system state every {self.interval}s")
+
         # Send metrics once on startup
         self.metrics = self.system_metrics_reader.get_system_metrics()
         self.send_metrics(self.metrics)
+        logging.info(f"Initial system state sent.")
 
         while True:
+            start = time.time();
             metrics = self.system_metrics_reader.get_system_metrics()
+            took = time.time() - start
+            logging.info(f"Metrics refresh took {took:.3f}s")
             if self.check_threshold(metrics):
                 self.send_metrics(metrics)
             time.sleep(self.interval)
@@ -86,6 +80,7 @@ class BeaconAgent:
         logging.info("Data sent successfully:")
         self.pretty_print_metrics(metrics)
         return
+
         headers = {'Content-Type': 'application/json'}
         try:
             response = requests.post(self.push_url, data=json.dumps(metrics), headers=headers)

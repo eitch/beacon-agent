@@ -100,7 +100,7 @@ class SystemMetricsReader:
 
         cpu_count = self.get_cpu_count()
         cpu_load_percent = self.calculate_cpu_load()
-        logging.info(f"cpu_load_percent: {cpu_load_percent}")
+        logging.debug(f"cpu_load_percent: {cpu_load_percent}")
 
         # Get memory information from /proc/meminfo
         with open('/proc/meminfo', 'r') as f:
@@ -188,7 +188,7 @@ class SystemMetricsReader:
         projects = self.docker_compose_reader.list_compose_projects()
 
         elapsed_time = time.time() - start_time
-        logging.info(f"Metrics load took: {elapsed_time:.3f} seconds")
+        logging.debug(f"Metrics load took: {elapsed_time:.3f}s")
 
         self.last_metrics = {
             'system_info': system_info,
@@ -237,7 +237,7 @@ class SystemMetricsReader:
                                     text=True)
             elapsed_time = time.time() - start_time
             if elapsed_time > 3:
-                logging.info(f"Process took: {elapsed_time:.3f} seconds")
+                logging.debug(f"Process took: {elapsed_time:.3f} seconds")
 
             # Split the output into lines
             lines = result.stdout.strip().split('\n')
@@ -272,7 +272,7 @@ class SystemMetricsReader:
             )
             elapsed_time = time.time() - start_time
             if elapsed_time > 3:
-                logging.info(f"Process took: {elapsed_time:.3f} seconds")
+                logging.debug(f"Process took: {elapsed_time:.3f} seconds")
 
             # Split the output into lines
             lines = result.stdout.strip().split('\n')

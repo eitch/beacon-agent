@@ -5,7 +5,6 @@ import glob
 import re
 import json
 
-
 class SmartCtlReader:
     def __init__(self):
         """Initialize the DockerComposeReader."""
@@ -32,7 +31,7 @@ class SmartCtlReader:
         dict: Parsed S.M.A.R.T. data or error message if unsuccessful
         """
 
-        logging.info(f"Getting S.M.A.R.T. data for {device}...")
+        logging.debug(f"Getting S.M.A.R.T. data for {device}...")
         if not self.check_smartctl_available():
             return {"error": "smartctl command is not available. Please install smartmontools."}
 
@@ -117,7 +116,7 @@ class SmartCtlReader:
         Returns:
         dict: A dictionary containing the S.M.A.R.T. status information, or an error message if unsuccessful.
         """
-        logging.info(f"Getting NVME status data for {device}...")
+        logging.debug(f"Getting NVME status data for {device}...")
 
         status = {'is_nvme': 'true'}
 
@@ -185,7 +184,7 @@ class SmartCtlReader:
             return {"error": "smartctl command is not available. Please install smartmontools."}
 
         self.list_devices()
-        logging.info(f"Getting S.M.A.R.T. data for devices: {self.devices}")
+        logging.debug(f"Getting S.M.A.R.T. data for devices: {self.devices}")
 
         self.smart_data = {}
         for device in self.devices:
