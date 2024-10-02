@@ -2,6 +2,7 @@ import subprocess
 import platform
 import socket
 
+
 class SystemInfoReader:
     def __init__(self):
         self.info = {
@@ -15,7 +16,8 @@ class SystemInfoReader:
         self.get_os_info()
         self.get_ip_addresses()
 
-    def get_kernel_version(self):
+    @staticmethod
+    def get_kernel_version():
         """Fetch the kernel version using uname"""
         return platform.release()
 
@@ -54,13 +56,14 @@ class SystemInfoReader:
         try:
             # First, attempt using psutil
             import psutil
-            addrs = psutil.net_if_addrs()
-            for iface_name, iface_addrs in addrs.items():
+            addresses = psutil.net_if_addrs()
+            for iface_name, iface_addrs in addresses.items():
                 if 'docker' not in iface_name.lower() and 'br-' not in iface_name.lower():
                     for addr in iface_addrs:
                         if addr.family == socket.AF_INET and addr.address != '127.0.0.1':  # IPv4
                             self.info['ipv4_addresses'].append(addr.address)
-                        elif addr.family == socket.AF_INET6 and not addr.address.startswith('fe80') and addr.address != '::1':  # IPv6
+                        elif addr.family == socket.AF_INET6 and not addr.address.startswith(
+                                'fe80') and addr.address != '::1':  # IPv6
                             self.info['ipv6_addresses'].append(addr.address)
         except ImportError:
             # Fallback: use subprocess to get IPs via system commands (ip or ifconfig)
@@ -92,7 +95,8 @@ class SystemInfoReader:
                     self.info['ipv4_addresses'].append(ip)
             elif line.startswith('inet6 '):
                 ip = line.split()[1].split('/')[0]
-                if ip != '::1' and not ip.startswith('fe80') and current_interface and 'docker' not in current_interface and 'br-' not in current_interface:
+                if ip != '::1' and not ip.startswith(
+                        'fe80') and current_interface and 'docker' not in current_interface and 'br-' not in current_interface:
                     self.info['ipv6_addresses'].append(ip)
             elif line and not line.startswith(('link/', 'valid_lft')):
                 current_interface = line.split(':')[1].strip() if ':' in line else None
@@ -111,7 +115,8 @@ class SystemInfoReader:
                     self.info['ipv4_addresses'].append(ip)
             elif line.startswith('inet6 '):
                 ip = line.split()[1]
-                if ip != '::1' and not ip.startswith('fe80') and current_interface and 'docker' not in current_interface and 'br-' not in current_interface:
+                if ip != '::1' and not ip.startswith(
+                        'fe80') and current_interface and 'docker' not in current_interface and 'br-' not in current_interface:
                     self.info['ipv6_addresses'].append(ip)
 
     def get_system_info(self):
