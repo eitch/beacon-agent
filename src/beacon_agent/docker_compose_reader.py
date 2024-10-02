@@ -1,3 +1,4 @@
+import shutil
 import subprocess
 import json
 import logging
@@ -38,6 +39,10 @@ class DockerComposeReader:
 
     def get_docker_containers(self):
         """Get details of all running Docker containers."""
+        if shutil.which("docker") is None:
+            logging.error("docker command is not available. Please disable docker reader!")
+            return []
+
         command = ["docker", "ps", "--format", "{{json .}}"]
         output = self.run_command(command)
 
