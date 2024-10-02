@@ -4,12 +4,15 @@ import shutil
 import glob
 import re
 import json
+import os
+
 
 class SmartCtlReader:
     def __init__(self):
         """Initialize the DockerComposeReader."""
         self.devices = []
         self.smart_data = {}
+        self.use_ansi = False
 
     @staticmethod
     def check_smartctl_available():
@@ -41,7 +44,7 @@ class SmartCtlReader:
             # Execute the smartctl command
             result = subprocess.run(['smartctl', '-H', device], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                     text=True)
-            if result.returncode != 255:
+            if result.returncode not in [0, 255]:
                 if result.stderr:
                     return {"error": f"{result.stderr.strip()}"}
                 return {"error": f"{result.stdout.strip()}"}
@@ -51,6 +54,9 @@ class SmartCtlReader:
             status = 'NOK'
             for line in output_lines:
                 if line.startswith('SMART Health Status:') and line == "SMART Health Status: OK":
+                    status = "OK"
+                    break
+                if "SMART overall-health self-assessment test result" in line and "PASSED" in line:
                     status = "OK"
                     break
             smart_data['smart_health_status'] = status
@@ -105,8 +111,7 @@ class SmartCtlReader:
         except Exception as e:
             return {"error": f"Exception occurred: {str(e)}"}
 
-    @staticmethod
-    def get_nvme_status(device):
+    def get_nvme_status(self, device):
         """
         Get the S.M.A.R.T. status of an NVMe drive using the nvme tool.
 
@@ -116,14 +121,16 @@ class SmartCtlReader:
         Returns:
         dict: A dictionary containing the S.M.A.R.T. status information, or an error message if unsuccessful.
         """
+
         logging.debug(f"Getting NVME status data for {device}...")
-
         status = {'is_nvme': 'true'}
-
         try:
             # Run the nvme smart-log command to get S.M.A.R.T. information
+            env = os.environ.copy()
+            if self.use_ansi:
+                env["LANG"] = "ANSI"
             nvme_output = subprocess.run(['nvme', 'smart-log', device], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                         text=True)
+                                         text=True, env=env, encoding='utf-8')
             if nvme_output.returncode == 0:
                 # Parse the output to extract the S.M.A.R.T. information
                 for line in nvme_output.stdout.splitlines():
@@ -138,6 +145,13 @@ class SmartCtlReader:
                     return {"error": f"Permission denied when accessing {device}. Please run as superuser."}
                 return {"error": f"Failed to retrieve status for {device}: {nvme_output.stderr.strip()}"}
 
+        except UnicodeDecodeError as e:
+            if self.use_ansi:
+                # already using ANSI, so cancel
+                return {"error": str(e)}
+            logging.warning(f"UnicodeDecodeError: {e}. Retrying with LANG=ANSI.")
+            self.use_ansi = True
+            return self.get_nvme_status(device)
         except Exception as e:
             return {"error": str(e)}
 
@@ -189,6 +203,9 @@ class SmartCtlReader:
         self.smart_data = {}
         for device in self.devices:
             if device.startswith("/dev/nvme"):
+                if shutil.which("nvme") is None:
+                    return {
+                        "error": "nvme command is not available, yet NVME drives were detected! Please install nvme-cli."}
                 smart_data = self.get_nvme_status(device)
             else:
                 smart_data = self.get_smart_data(device)
