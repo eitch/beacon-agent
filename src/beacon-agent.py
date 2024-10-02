@@ -83,7 +83,7 @@ class BeaconAgent:
 
     @staticmethod
     def pretty_print_metrics(metrics):
-        logging.info(json.dumps(metrics, indent=4))
+        logging.info(json.dumps(metrics, indent=2))
 
 
 if __name__ == "__main__":

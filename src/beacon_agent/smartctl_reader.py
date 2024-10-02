@@ -220,7 +220,7 @@ class SmartCtlReader:
             logging.info("No smart data available.")
             return
 
-        logging.info(json.dumps(self.smart_data, indent=4))
+        logging.info(json.dumps(self.smart_data, indent=2))
 
 
 if __name__ == "__main__":

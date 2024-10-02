@@ -130,7 +130,7 @@ class DockerComposeReader:
         for project, containers in projects.items():
             logging.info(f"Project: {project}")
             for container in containers:
-                logging.info(f"  Container: {container['name']}:\n{json.dumps(container, indent=4)}")
+                logging.info(f"  Container: {container['name']}:\n{json.dumps(container, indent=2)}")
                 logging.info("")
 
 
