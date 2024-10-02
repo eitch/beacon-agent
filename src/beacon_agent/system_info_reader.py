@@ -1,6 +1,7 @@
 import subprocess
 import platform
 import socket
+import logging
 
 
 class SystemInfoReader:
@@ -125,5 +126,10 @@ class SystemInfoReader:
 
 
 if __name__ == "__main__":
+    from .custom_logging import CustomLogging
+
+    custom_logging = CustomLogging()
+    custom_logging.configure_logging()
+
     system_info = SystemInfoReader()
-    print(system_info.get_system_info())
+    logging.info(system_info.get_system_info())

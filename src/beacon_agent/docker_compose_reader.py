@@ -2,7 +2,6 @@ import subprocess
 import json
 import logging
 
-
 class DockerComposeReader:
     def __init__(self):
         """Initialize the DockerComposeReader."""
@@ -84,18 +83,6 @@ class DockerComposeReader:
 
         return projects
 
-    def print_projects_details(self, projects):
-        """Print details of each Docker Compose project."""
-        if not projects:
-            logging.info("No Docker Compose projects found.")
-            return
-
-        for project, containers in projects.items():
-            logging.info(f"Project: {project}")
-            for container in containers:
-                logging.info(f"  Container: {container['name']}:\n{json.dumps(container, indent=4)}")
-                logging.info("")
-
     @staticmethod
     def parse_docker_labels(label_str):
         """
@@ -127,3 +114,27 @@ class DockerComposeReader:
             labels_dict[key] = value
 
         return labels_dict
+
+    @staticmethod
+    def print_projects_details(projects):
+        """Print details of each Docker Compose project."""
+        if not projects:
+            logging.info("No Docker Compose projects found.")
+            return
+
+        for project, containers in projects.items():
+            logging.info(f"Project: {project}")
+            for container in containers:
+                logging.info(f"  Container: {container['name']}:\n{json.dumps(container, indent=4)}")
+                logging.info("")
+
+
+if __name__ == "__main__":
+    from .custom_logging import CustomLogging
+
+    custom_logging = CustomLogging()
+    custom_logging.configure_logging()
+
+    docker = DockerComposeReader()
+    projects = docker.list_compose_projects()
+    docker.print_projects_details(projects)

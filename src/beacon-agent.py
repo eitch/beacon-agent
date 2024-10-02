@@ -11,27 +11,16 @@ import json
 import time
 import logging
 
-from beacon_agent.customer_logging_formatter import CustomLoggingFormatter
+from beacon_agent.custom_logging import CustomLogging
 from beacon_agent.system_metrics_reader import SystemMetricsReader
 
 
 class BeaconAgent:
     def __init__(self, push_url, interval=10, threshold=90):
-        logger = logging.root
-        logger.setLevel(logging.INFO)
 
-        # Create console handler
-        ch = logging.StreamHandler()
-        ch.setLevel(logging.INFO)
+        custom_logging = CustomLogging()
+        custom_logging.configure_logging()
 
-        # Create custom formatter with a max length of 10 for module names
-        formatter = CustomLoggingFormatter(datefmt='%Y-%m-%d %H:%M:%S',
-                                           fmt='%(asctime)s.%(msecs)03d %(module)s %(levelname)s: %(message)s',
-                                           fixed_length=15)
-        ch.setFormatter(formatter)
-
-        # Add handler to the logger
-        logger.addHandler(ch)
         self.push_url = push_url
         self.interval = interval
         self.threshold = threshold

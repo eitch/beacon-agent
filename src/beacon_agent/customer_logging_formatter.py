@@ -1,5 +1,6 @@
 import logging
 
+
 class CustomLoggingFormatter(logging.Formatter):
     def __init__(self, fixed_length=20, *args, **kwargs):
         self.fixed_length = fixed_length
@@ -10,3 +11,4 @@ class CustomLoggingFormatter(logging.Formatter):
         record.module = f"{record.module:<{self.fixed_length}}"[
                         :self.fixed_length]  # Pad with spaces and truncate if necessary
         return super().format(record)
+

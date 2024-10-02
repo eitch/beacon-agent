@@ -225,7 +225,8 @@ class SystemMetricsReader:
         if shutil.which("synopkg") is not None:
             return self.count_upgradable_packages_synopkg()
 
-    def count_upgradable_packages_synopkg(self):
+    @staticmethod
+    def count_upgradable_packages_synopkg():
         if shutil.which("synopkg") is None:
             logging.warning("synopkg command is not available. Can not count upgradeable packages.")
             return 0, 0
@@ -256,7 +257,8 @@ class SystemMetricsReader:
             logging.error(f"An error occurred: {e}")
             return 0, 0
 
-    def count_upgradable_packages_apt(self):
+    @staticmethod
+    def count_upgradable_packages_apt():
         if shutil.which("apt-get") is None:
             logging.warning("apt-get command is not available. Can not count upgradeable packages.")
             return 0, 0

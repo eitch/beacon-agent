@@ -204,3 +204,14 @@ class SmartCtlReader:
             return
 
         logging.info(json.dumps(self.smart_data, indent=4))
+
+
+if __name__ == "__main__":
+    from .custom_logging import CustomLogging
+
+    custom_logging = CustomLogging()
+    custom_logging.configure_logging()
+
+    smartctl = SmartCtlReader()
+    smartctl.read_smartdata_for_all_devices()
+    smartctl.print_all_details()
