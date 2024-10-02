@@ -3,11 +3,18 @@ import subprocess
 import json
 import logging
 
+
 class DockerComposeReader:
     def __init__(self):
         """Initialize the DockerComposeReader."""
+        self.disabled = False
+        if shutil.which("docker") is None:
+            logging.error("docker command is not available. Docker reading disabled!")
+            self.disabled = True
+            return
 
-    def run_command(self, command):
+    @staticmethod
+    def _run_command(command):
         """
         Run a shell command and return the output.
         Handles permission errors and other issues gracefully.
@@ -37,14 +44,14 @@ class DockerComposeReader:
             logging.error(f"An unexpected error occurred: {e}")
             return None
 
-    def get_docker_containers(self):
+    def _get_docker_containers(self):
         """Get details of all running Docker containers."""
         if shutil.which("docker") is None:
             logging.error("docker command is not available. Please disable docker reader!")
             return []
 
         command = ["docker", "ps", "--format", "{{json .}}"]
-        output = self.run_command(command)
+        output = self._run_command(command)
 
         if not output:
             return []
@@ -61,13 +68,16 @@ class DockerComposeReader:
         return containers
 
     def list_compose_projects(self):
+        if self.disabled:
+            return None
+
         """List Docker Compose projects and their details."""
-        containers = self.get_docker_containers()
+        containers = self._get_docker_containers()
         projects = {}
 
         for container in containers:
             # Docker Compose projects usually have the project name as a label or part of the container name
-            labels = self.parse_docker_labels(container.get('Labels', {}))
+            labels = self._parse_docker_labels(container.get('Labels', {}))
             compose_project = labels.get('com.docker.compose.project')
             if not compose_project:
                 compose_project = container['Names'].split("_")[0]  # Guessing from container name
@@ -89,7 +99,7 @@ class DockerComposeReader:
         return projects
 
     @staticmethod
-    def parse_docker_labels(label_str):
+    def _parse_docker_labels(label_str):
         """
         Parse the Docker labels string into a dictionary.
 

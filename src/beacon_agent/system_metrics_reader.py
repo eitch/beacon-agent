@@ -20,6 +20,7 @@ except ImportError:
 from .docker_compose_reader import DockerComposeReader
 from .smartctl_reader import SmartCtlReader
 from .system_info_reader import SystemInfoReader
+from .proxmox_reader import ProxmoxReader
 
 
 class SystemMetricsReader:
@@ -27,6 +28,7 @@ class SystemMetricsReader:
         self.system_info_reader = SystemInfoReader()
         self.docker_compose_reader = DockerComposeReader()
         self.smartctl_reader = SmartCtlReader()
+        self.proxmox_reader = ProxmoxReader('user@pam!user', 'token')
         self.prev_cpu_times = None
         self.sys_info = {}
         self.last_metrics = {}
@@ -185,7 +187,10 @@ class SystemMetricsReader:
         smart_data = self.smartctl_reader.read_smartdata_for_all_devices()
 
         # Fetch all Docker Compose projects
-        projects = self.docker_compose_reader.list_compose_projects()
+        docker_projects = self.docker_compose_reader.list_compose_projects()
+
+        # Fetch proxmox data
+        proxmox_data = self.proxmox_reader.read_proxmox_data()
 
         elapsed_time = time.time() - start_time
         logging.debug(f"Metrics load took: {elapsed_time:.3f}s")
@@ -204,9 +209,13 @@ class SystemMetricsReader:
             'package_security_upgrade_count': security_count,
             'memory_info': sys_info['memory_info'],
             'disk_usage': sys_info['disk_usage'],
-            'smart_monitor_data': smart_data,
-            'docker_compose_projects': projects
+            'smart_monitor_data': smart_data
         }
+
+        if docker_projects:
+            self.last_metrics['docker_compose_projects'] = docker_projects
+        if proxmox_data:
+            self.last_metrics['proxmox_data'] = proxmox_data
 
         return self.last_metrics
 
