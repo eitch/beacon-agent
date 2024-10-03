@@ -4,10 +4,13 @@ import json
 import logging
 
 
-class DockerComposeReader:
-    def __init__(self):
+class DockerReader:
+    def __init__(self, config):
         """Initialize the DockerComposeReader."""
-        self.disabled = False
+        self.disabled = config["docker"]["disabled"]
+        if self.disabled:
+            return
+
         if shutil.which("docker") is None:
             logging.error("docker command is not available. Docker reading disabled!")
             self.disabled = True
@@ -64,10 +67,10 @@ class DockerComposeReader:
                 # print(json_object)
                 containers.append(json_object)  # Parse each line as JSON
             except json.JSONDecodeError:
-                self.log.warning(f"Skipping malformed line: {line}")
+                logging.warning(f"Skipping malformed line: {line}")
         return containers
 
-    def list_compose_projects(self):
+    def list_projects(self):
         if self.disabled:
             return None
 
@@ -145,11 +148,11 @@ class DockerComposeReader:
 
 
 if __name__ == "__main__":
-    from .custom_logging import CustomLogging
+    logging.basicConfig(level=logging.DEBUG)
 
-    custom_logging = CustomLogging()
-    custom_logging.configure_logging()
+    with open('../../example_config.json', 'r') as file:
+        config = json.load(file)
 
-    docker = DockerComposeReader()
-    projects = docker.list_compose_projects()
+    docker = DockerReader(config)
+    projects = docker.list_projects()
     docker.print_projects_details(projects)

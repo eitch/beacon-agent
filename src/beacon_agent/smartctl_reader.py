@@ -8,14 +8,18 @@ import os
 
 
 class SmartCtlReader:
-    def __init__(self):
+    def __init__(self, config):
         """Initialize the DockerComposeReader."""
+        self.disabled = config["smartctl"]["disabled"]
+        if self.disabled:
+            return
+
         self.devices = []
         self.smart_data = {}
         self.use_ansi = False
 
     @staticmethod
-    def check_smartctl_available():
+    def _check_smartctl_available():
         """
         Check if smartctl is available on the system.
 
@@ -24,7 +28,7 @@ class SmartCtlReader:
         """
         return shutil.which("smartctl") is not None
 
-    def get_smart_data(self, device):
+    def _get_smart_data(self, device):
         """
         Get S.M.A.R.T. data for a given device using the smartctl command.
         Args:
@@ -33,9 +37,8 @@ class SmartCtlReader:
         Returns:
         dict: Parsed S.M.A.R.T. data or error message if unsuccessful
         """
-
         logging.debug(f"Getting S.M.A.R.T. data for {device}...")
-        if not self.check_smartctl_available():
+        if not self._check_smartctl_available():
             return {"error": "smartctl command is not available. Please install smartmontools."}
 
         smart_data = {'is_nvme': 'false'}
@@ -46,8 +49,13 @@ class SmartCtlReader:
                                     text=True)
             if result.returncode not in [0, 255]:
                 if result.stderr:
-                    return {"error": f"{result.stderr.strip()}"}
-                return {"error": f"{result.stdout.strip()}"}
+                    output = result.stderr.strip()
+                else:
+                    output = result.stdout.strip()
+
+                if "Permission denied" in output:
+                    return {"error": f"Permission denied when accessing {device}. Please run as superuser."}
+                return {"error": f"{output}"}
 
             # evaluate smart health status
             output_lines = result.stdout.splitlines()
@@ -111,7 +119,7 @@ class SmartCtlReader:
         except Exception as e:
             return {"error": f"Exception occurred: {str(e)}"}
 
-    def get_nvme_status(self, device):
+    def _get_nvme_status(self, device):
         """
         Get the S.M.A.R.T. status of an NVMe drive using the nvme tool.
 
@@ -151,11 +159,11 @@ class SmartCtlReader:
                 return {"error": str(e)}
             logging.warning(f"UnicodeDecodeError: {e}. Retrying with LANG=ANSI.")
             self.use_ansi = True
-            return self.get_nvme_status(device)
+            return self._get_nvme_status(device)
         except Exception as e:
             return {"error": str(e)}
 
-    def list_devices(self):
+    def _list_devices(self):
         """
         List all potential devices, prioritizing /dev/sata*.
         If none are found, check for /dev/sd*, then /dev/sg*, and finally always include /dev/nvme* devices.
@@ -194,10 +202,12 @@ class SmartCtlReader:
         return self.devices
 
     def read_smartdata_for_all_devices(self):
-        if not self.check_smartctl_available():
+        if self.disabled:
+            return None
+        if not self._check_smartctl_available():
             return {"error": "smartctl command is not available. Please install smartmontools."}
 
-        self.list_devices()
+        self._list_devices()
         logging.debug(f"Getting S.M.A.R.T. data for devices: {self.devices}")
 
         self.smart_data = {}
@@ -206,9 +216,9 @@ class SmartCtlReader:
                 if shutil.which("nvme") is None:
                     return {
                         "error": "nvme command is not available, yet NVME drives were detected! Please install nvme-cli."}
-                smart_data = self.get_nvme_status(device)
+                smart_data = self._get_nvme_status(device)
             else:
-                smart_data = self.get_smart_data(device)
+                smart_data = self._get_smart_data(device)
 
             self.smart_data[device] = smart_data
 
@@ -224,11 +234,11 @@ class SmartCtlReader:
 
 
 if __name__ == "__main__":
-    from .custom_logging import CustomLogging
+    logging.basicConfig(level=logging.DEBUG)
 
-    custom_logging = CustomLogging()
-    custom_logging.configure_logging()
+    with open('../../example_config.json', 'r') as file:
+        config = json.load(file)
 
-    smartctl = SmartCtlReader()
+    smartctl = SmartCtlReader(config)
     smartctl.read_smartdata_for_all_devices()
     smartctl.print_all_details()

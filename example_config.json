@@ -1,0 +1,20 @@
+{
+  "agent": {
+    "api_url": "http://api.example.com",
+    "api_key": "your_api_key_here",
+    "refresh_interval_seconds": 10,
+    "notify_threshold_percent": 90
+  },
+  "system_metrics": {},
+  "smartctl": {
+    "disabled": false
+  },
+  "docker": {
+    "disabled": false
+  },
+  "proxmox": {
+    "disabled": true,
+    "token_id": "",
+    "token_secret": ""
+  }
+}

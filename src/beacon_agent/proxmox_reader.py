@@ -10,36 +10,43 @@ from requests import HTTPError
 
 
 class ProxmoxReader:
-    def __init__(self, token_id, token_secret, verify_ssl=True):
-        self.disabled = False
+    def __init__(self, config):
+        self.disabled = config["proxmox"]["disabled"]
+        if self.disabled:
+            return
+
+        token_id = config["proxmox"]["token_id"]
+        token_secret = config["proxmox"]["token_secret"]
+
         if shutil.which('pveversion') is None:
             logging.error("pveversion not found, this is not a Proxmox Node.")
             self.disabled = True
             return
 
+        # we connect to localhost, so TLS won't work, so we need to disable TLS validation
         self.host = '127.0.0.1'
         urllib3.disable_warnings()
-        verify_ssl = False
+        verify_tls = False
 
         self.base_url = f"https://{self.host}:8006/api2/json"
         self.headers = {
             'Authorization': f'PVEAPIToken={token_id}={token_secret}'
         }
-        self.verify_ssl = verify_ssl
+        self.verify_tls = verify_tls
         self.node_name = socket.gethostname()
         self.proxmox_data = {}
 
     def _get_vm_details(self):
         url = f'{self.base_url}/nodes/{self.node_name}/qemu'
         logging.debug(f"Getting qemu details for node {self.node_name}")
-        response = requests.get(url, headers=self.headers, verify=self.verify_ssl, timeout=(5, 5))
+        response = requests.get(url, headers=self.headers, verify=self.verify_tls, timeout=(5, 5))
         response.raise_for_status()
         return response.json()['data']
 
     def _get_container_details(self):
         url = f'{self.base_url}/nodes/{self.node_name}/lxc'
         logging.debug(f"Getting lxc details for node {self.node_name}")
-        response = requests.get(url, headers=self.headers, verify=self.verify_ssl, timeout=(5, 5))
+        response = requests.get(url, headers=self.headers, verify=self.verify_tls, timeout=(5, 5))
         response.raise_for_status()
         return response.json()['data']
 
@@ -86,16 +93,11 @@ class ProxmoxReader:
 
 
 if __name__ == "__main__":
-    from .custom_logging import CustomLogging
+    logging.basicConfig(level=logging.DEBUG)
 
-    custom_logging = CustomLogging()
-    custom_logging.configure_logging()
+    with open('../../example_config.json', 'r') as file:
+        config = json.load(file)
 
-    # host = '127.0.0.1'
-    # node_name = 'pm-02'
-    token_id = 'user@pam!user'
-    token_secret = 'token'
-
-    proxmox = ProxmoxReader(token_id=token_id, token_secret=token_secret)
+    proxmox = ProxmoxReader(config)
     proxmox_data = proxmox.read_proxmox_data()
     logging.info(f'{json.dumps(proxmox_data, indent=2)}')

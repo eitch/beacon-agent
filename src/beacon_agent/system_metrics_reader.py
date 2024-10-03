@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-import shutil
+
 #
 # Prerequisites
 #
@@ -10,6 +10,7 @@ import subprocess
 import re
 import time
 import logging
+import shutil
 
 # Try to import psutil and handle ImportError
 try:
@@ -17,23 +18,24 @@ try:
 except ImportError:
     psutil = None
 
-from .docker_compose_reader import DockerComposeReader
+from .docker_reader import DockerReader
 from .smartctl_reader import SmartCtlReader
 from .system_info_reader import SystemInfoReader
 from .proxmox_reader import ProxmoxReader
 
 
 class SystemMetricsReader:
-    def __init__(self):
+    def __init__(self, config):
         self.system_info_reader = SystemInfoReader()
-        self.docker_compose_reader = DockerComposeReader()
-        self.smartctl_reader = SmartCtlReader()
-        self.proxmox_reader = ProxmoxReader('user@pam!user', 'token')
+        self.docker_reader = DockerReader(config)
+        self.smartctl_reader = SmartCtlReader(config)
+        self.proxmox_reader = ProxmoxReader(config)
         self.prev_cpu_times = None
         self.sys_info = {}
         self.last_metrics = {}
 
-    def get_disk_usage_from_df(self):
+    @staticmethod
+    def get_disk_usage_from_df():
         # Execute the command
         result = subprocess.run(
             ['df', '-l', '-x', 'overlay', '-x', 'tmpfs', '-x', 'efivarf', '-x', 'devtmpfs', '-x', 'none'],
@@ -64,7 +66,8 @@ class SystemMetricsReader:
 
         return df_dict
 
-    def get_cpu_count(self):
+    @staticmethod
+    def get_cpu_count():
         # Read the /proc/cpuinfo content and parse it to count CPUs
         cpu_count = 0
         with open('/proc/cpuinfo', 'r') as f:
@@ -73,14 +76,15 @@ class SystemMetricsReader:
                     cpu_count += 1
         return cpu_count
 
-    def read_cpu_times(self):
+    @staticmethod
+    def read_cpu_times():
         with open('/proc/stat', 'r') as f:
             first_line = f.readline()
             # Split the line into components
             cpu_times = list(map(int, first_line.split()[1:]))
         return cpu_times
 
-    def calculate_cpu_load(self, interval=1):
+    def calculate_cpu_load(self):
         prev_cpu_times = self.prev_cpu_times
         if self.prev_cpu_times is None:
             # Get initial CPU times
@@ -114,14 +118,6 @@ class SystemMetricsReader:
         available_memory = meminfo_dict.get('MemAvailable', 0)
         used_memory = total_memory - available_memory
         memory_percent = (used_memory / total_memory) * 100 if total_memory > 0 else 0
-
-        # # Get disk usage from /proc/diskstats (simplified)
-        # with open('/proc/diskstats', 'r') as f:
-        #     disk_usage = f.readlines()
-        # total_disk = sum(int(line.split()[3]) for line in disk_usage)  # Assuming first entry for simplicity
-        # used_disk = 0  # This requires more complex logic or additional data
-        # free_disk = total_disk - used_disk if total_disk > 0 else 0
-        # disk_percent = (used_disk / total_disk) * 100 if total_disk > 0 else 0
 
         disk_usage = self.get_disk_usage_from_df()
 
@@ -187,7 +183,7 @@ class SystemMetricsReader:
         smart_data = self.smartctl_reader.read_smartdata_for_all_devices()
 
         # Fetch all Docker Compose projects
-        docker_projects = self.docker_compose_reader.list_compose_projects()
+        docker_projects = self.docker_reader.list_projects()
 
         # Fetch proxmox data
         proxmox_data = self.proxmox_reader.read_proxmox_data()
@@ -208,10 +204,11 @@ class SystemMetricsReader:
             'package_upgrade_count': non_security_count + security_count,
             'package_security_upgrade_count': security_count,
             'memory_info': sys_info['memory_info'],
-            'disk_usage': sys_info['disk_usage'],
-            'smart_monitor_data': smart_data
+            'disk_usage': sys_info['disk_usage']
         }
 
+        if smart_data:
+            self.last_metrics['smart_monitor_data'] = smart_data
         if docker_projects:
             self.last_metrics['docker_compose_projects'] = docker_projects
         if proxmox_data:

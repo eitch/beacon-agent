@@ -3,7 +3,7 @@ import logging
 from .customer_logging_formatter import CustomLoggingFormatter
 
 
-class CustomLogging():
+class CustomLogging:
     def __init__(self):
         self.formatter = CustomLoggingFormatter(datefmt='%Y-%m-%d %H:%M:%S',
                                                 fmt='%(asctime)s.%(msecs)03d %(module)s %(levelname)s: %(message)s',

@@ -3,7 +3,7 @@
 #
 # Prerequisites
 #
-#   sudo apt install python3-requests python3-psutil python3-docker
+#   sudo apt install python3-requests python3-psutil
 #
 
 import requests
@@ -16,15 +16,19 @@ from beacon_agent.system_metrics_reader import SystemMetricsReader
 
 
 class BeaconAgent:
-    def __init__(self, push_url, interval=10, threshold=90):
+    def __init__(self, config_file="/etc/beacon-agent/config.json"):
 
         custom_logging = CustomLogging()
         custom_logging.configure_logging()
 
-        self.push_url = push_url
-        self.interval = interval
-        self.threshold = threshold
-        self.system_metrics_reader = SystemMetricsReader()
+        with open(config_file, 'r') as file:
+            config = json.load(file)
+
+        self.api_url = config['agent']['api_url']
+        self.api_key = config['agent']['api_key']
+        self.refresh_interval_seconds = config['agent']['refresh_interval_seconds']
+        self.notify_threshold_percent = config['agent']['notify_threshold_percent']
+        self.system_metrics_reader = SystemMetricsReader(config)
         self.metrics = {}
 
     def check_threshold(self, metrics):
@@ -32,24 +36,24 @@ class BeaconAgent:
         logging.debug(
             f"Most filled file system is mounted on {most_filled_fs['mount_point']} at {most_filled_fs['used_percent']}% used")
 
-        cpu_threshold = metrics['cpu_load_percent'] > self.threshold
+        cpu_threshold = metrics['cpu_load_percent'] > self.notify_threshold_percent
         memory_threshold = metrics['memory_info']['percent']
         disk_threshold = most_filled_fs['used_percent']
 
-        if cpu_threshold > self.threshold:
+        if cpu_threshold > self.notify_threshold_percent:
             logging.warning(f"CPU threshold reached at {cpu_threshold}%")
-        if memory_threshold > self.threshold:
+        if memory_threshold > self.notify_threshold_percent:
             logging.warning(f"Memory threshold reached at {memory_threshold}%")
-        if disk_threshold > self.threshold:
+        if disk_threshold > self.notify_threshold_percent:
             logging.warning(
                 f"Disk threshold reached at {most_filled_fs['mount_point']} at {most_filled_fs['used_percent']}% used")
 
-        return (cpu_threshold > self.threshold or
-                memory_threshold > self.threshold or
-                disk_threshold > self.threshold)
+        return (cpu_threshold > self.notify_threshold_percent or
+                memory_threshold > self.notify_threshold_percent or
+                disk_threshold > self.notify_threshold_percent)
 
     def monitor_system(self):
-        logging.info(f"Beacon-Agent started and refreshing system state every {self.interval}s")
+        logging.info(f"Beacon-Agent started and refreshing system state every {self.refresh_interval_seconds}s")
 
         # Send metrics once on startup
         self.metrics = self.system_metrics_reader.get_system_metrics()
@@ -57,13 +61,13 @@ class BeaconAgent:
         logging.info(f"Initial system state sent.")
 
         while True:
-            start = time.time();
+            start = time.time()
             metrics = self.system_metrics_reader.get_system_metrics()
             took = time.time() - start
             logging.info(f"Metrics refresh took {took:.3f}s")
             if self.check_threshold(metrics):
                 self.send_metrics(metrics)
-            time.sleep(self.interval)
+            time.sleep(self.refresh_interval_seconds)
 
     def send_metrics(self, metrics):
         logging.info("Data sent successfully:")
@@ -89,7 +93,7 @@ class BeaconAgent:
 if __name__ == "__main__":
 
     url = 'https://example.com/metrics'
-    agent = BeaconAgent(url, interval=10, threshold=90)
+    agent = BeaconAgent(config_file="../example_config.json")
 
     try:
         agent.monitor_system()
