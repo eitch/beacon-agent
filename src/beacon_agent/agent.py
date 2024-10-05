@@ -1,19 +1,12 @@
-#!/usr/bin/python3 -u
-
-#
-# Prerequisites
-#
-#   sudo apt install python3-requests python3-psutil
-#
+import json
+import logging
+import time
 
 import requests
-import json
-import time
-import logging
-import argparse
 
-from beacon_agent.custom_logging import CustomLogging
-from beacon_agent.system_metrics_reader import SystemMetricsReader
+from agent_config import AgentConfig
+from custom_logging import CustomLogging
+from system_metrics_reader import SystemMetricsReader
 
 
 class BeaconAgent:
@@ -22,19 +15,24 @@ class BeaconAgent:
         custom_logging = CustomLogging()
         custom_logging.configure_logging()
 
-        logging.info(f"Using config file: {config_file}")
         try:
             with open(config_file, 'r') as file:
-                config = json.load(file)
+                config_json = json.load(file)
+            logging.info(f"Read config file: {config_file}")
         except FileNotFoundError as e:
-            logging.error(f"Config file not found: {e}. Can not continue.!")
+            logging.error(f"Config file does not exist at {config_file}!")
             exit(1)
 
-        self.api_url = config['agent']['api_url']
-        self.api_key = config['agent']['api_key']
-        self.refresh_interval_seconds = config['agent']['refresh_interval_seconds']
-        self.notify_threshold_percent = config['agent']['notify_threshold_percent']
-        self.system_metrics_reader = SystemMetricsReader(config)
+        self.config = AgentConfig(config_json)
+
+        self.api_url = self.config.get_config_value(['agent', 'api_url'])
+        self.api_key = self.config.get_config_value(['agent', 'api_key'])
+
+        self.refresh_interval_seconds = self.config.get_config_value(['agent', 'refresh_interval_seconds'], default=10)
+        self.notify_delay_seconds = self.config.get_config_value(['agent', 'notify_delay_minutes'], default=10) * 60
+        self.notify_threshold_percent = self.config.get_config_value(['agent', 'notify_threshold_percent'], default=90)
+        self.system_metrics_reader = SystemMetricsReader(self.config)
+        self.last_notify_time = 0
         self.metrics = {}
 
     def check_threshold(self, metrics):
@@ -71,13 +69,15 @@ class BeaconAgent:
             metrics = self.system_metrics_reader.get_system_metrics()
             took = time.time() - start
             logging.info(f"Metrics refresh took {took:.3f}s")
-            if self.check_threshold(metrics):
+            last_notify_delay = time.time() - self.last_notify_time
+            if last_notify_delay > self.notify_delay_seconds or self.check_threshold(metrics):
                 self.send_metrics(metrics)
             time.sleep(self.refresh_interval_seconds)
 
     def send_metrics(self, metrics):
         logging.info("Data sent successfully:")
         self.pretty_print_metrics(metrics)
+        self.last_notify_time = time.time()
         return
 
         headers = {'Content-Type': 'application/json'}
@@ -91,19 +91,15 @@ class BeaconAgent:
         except requests.exceptions.RequestException as e:
             logging.info(f"Error sending data: {e}")
 
+        self.last_notify_time = time.time()
+
     @staticmethod
     def pretty_print_metrics(metrics):
         logging.info(json.dumps(metrics, indent=2))
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Specify config file using -f")
-    parser.add_argument('-f', '--file', type=str, default='/etc/beacon-agen/config.json',
-                        help='Path to the config file')
-    args = parser.parse_args()
-
-    config_file = args.file
-    agent = BeaconAgent(config_file=config_file)
+    agent = BeaconAgent(config_file='../example_config.json')
 
     try:
         agent.monitor_system()

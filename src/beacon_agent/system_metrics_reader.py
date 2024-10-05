@@ -18,10 +18,10 @@ try:
 except ImportError:
     psutil = None
 
-from .docker_reader import DockerReader
-from .smartctl_reader import SmartCtlReader
-from .system_info_reader import SystemInfoReader
-from .proxmox_reader import ProxmoxReader
+from docker_reader import DockerReader
+from smartctl_reader import SmartCtlReader
+from system_info_reader import SystemInfoReader
+from proxmox_reader import ProxmoxReader
 
 
 class SystemMetricsReader:
@@ -207,11 +207,11 @@ class SystemMetricsReader:
             'disk_usage': sys_info['disk_usage']
         }
 
-        if smart_data:
+        if smart_data is not None:
             self.last_metrics['smart_monitor_data'] = smart_data
-        if docker_projects:
+        if docker_projects is not None:
             self.last_metrics['docker_compose_projects'] = docker_projects
-        if proxmox_data:
+        if proxmox_data is not None:
             self.last_metrics['proxmox_data'] = proxmox_data
 
         return self.last_metrics

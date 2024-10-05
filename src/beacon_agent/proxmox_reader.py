@@ -11,16 +11,16 @@ from requests import HTTPError
 
 class ProxmoxReader:
     def __init__(self, config):
-        self.disabled = config["proxmox"]["disabled"]
-        if self.disabled:
+        self.enabled = config.get_config_value(["proxmox", "enabled"], default=False)
+        if not self.enabled:
             return
 
-        token_id = config["proxmox"]["token_id"]
-        token_secret = config["proxmox"]["token_secret"]
+        token_id = config.get_config_value(["proxmox", "token_id"])
+        token_secret = config.get_config_value(["proxmox", "token_secret"])
 
         if shutil.which('pveversion') is None:
             logging.error("pveversion not found, this is not a Proxmox Node.")
-            self.disabled = True
+            self.enabled = False
             return
 
         # we connect to localhost, so TLS won't work, so we need to disable TLS validation
@@ -51,7 +51,7 @@ class ProxmoxReader:
         return response.json()['data']
 
     def read_proxmox_data(self):
-        if self.disabled:
+        if not self.enabled:
             return None
 
         try:
@@ -93,10 +93,14 @@ class ProxmoxReader:
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
+    from custom_logging import CustomLogging
+    from agent_config import AgentConfig
+    custom_logging = CustomLogging()
+    custom_logging.configure_logging()
 
     with open('../../example_config.json', 'r') as file:
         config = json.load(file)
+    config = AgentConfig(config)
 
     proxmox = ProxmoxReader(config)
     proxmox_data = proxmox.read_proxmox_data()

@@ -26,7 +26,7 @@ mkdir -p "${TARGET}/lib/systemd/system"
 mkdir -p "${TARGET}/usr/lib/python3/dist-packages/${PROGRAM_NAME}/"
 cp -r DEBIAN "${TARGET}/DEBIAN"
 cp SYSTEMD/* "${TARGET}/lib/systemd/system/"
-cp "${SOURCE_FILES}/${PACKAGE_NAME}.py" "${TARGET}/usr/bin/${PACKAGE_NAME}"
+cp "${SOURCE_FILES}/beacon_agent_main.py" "${TARGET}/usr/bin/${PACKAGE_NAME}"
 cp -r "${SOURCE_FILES}/${PROGRAM_NAME}/"* "${TARGET}/usr/lib/python3/dist-packages/${PROGRAM_NAME}/"
 
 # generate man pages

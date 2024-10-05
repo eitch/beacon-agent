@@ -1,6 +1,6 @@
 import logging
 
-from .customer_logging_formatter import CustomLoggingFormatter
+from customer_logging_formatter import CustomLoggingFormatter
 
 
 class CustomLogging:

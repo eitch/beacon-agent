@@ -10,8 +10,8 @@ import os
 class SmartCtlReader:
     def __init__(self, config):
         """Initialize the DockerComposeReader."""
-        self.disabled = config["smartctl"]["disabled"]
-        if self.disabled:
+        self.enabled = config.get_config_value(["smartctl", "enabled"], default=False)
+        if not self.enabled:
             return
 
         self.devices = []
@@ -202,7 +202,7 @@ class SmartCtlReader:
         return self.devices
 
     def read_smartdata_for_all_devices(self):
-        if self.disabled:
+        if not self.enabled:
             return None
         if not self._check_smartctl_available():
             return {"error": "smartctl command is not available. Please install smartmontools."}
@@ -234,10 +234,14 @@ class SmartCtlReader:
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
+    from custom_logging import CustomLogging
+    from agent_config import AgentConfig
+    custom_logging = CustomLogging()
+    custom_logging.configure_logging()
 
     with open('../../example_config.json', 'r') as file:
         config = json.load(file)
+    config = AgentConfig(config)
 
     smartctl = SmartCtlReader(config)
     smartctl.read_smartdata_for_all_devices()

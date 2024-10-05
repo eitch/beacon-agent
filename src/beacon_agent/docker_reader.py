@@ -7,13 +7,13 @@ import logging
 class DockerReader:
     def __init__(self, config):
         """Initialize the DockerComposeReader."""
-        self.disabled = config["docker"]["disabled"]
-        if self.disabled:
+        self.enabled = config.get_config_value(["docker", "enabled"], default=False)
+        if not self.enabled:
             return
 
         if shutil.which("docker") is None:
             logging.error("docker command is not available. Docker reading disabled!")
-            self.disabled = True
+            self.enabled = False
             return
 
     @staticmethod
@@ -71,10 +71,10 @@ class DockerReader:
         return containers
 
     def list_projects(self):
-        if self.disabled:
+        """List Docker Compose projects and their details."""
+        if not self.enabled:
             return None
 
-        """List Docker Compose projects and their details."""
         containers = self._get_docker_containers()
         projects = {}
 
@@ -148,10 +148,14 @@ class DockerReader:
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
+    from custom_logging import CustomLogging
+    from agent_config import AgentConfig
+    custom_logging = CustomLogging()
+    custom_logging.configure_logging()
 
     with open('../../example_config.json', 'r') as file:
         config = json.load(file)
+    config = AgentConfig(config)
 
     docker = DockerReader(config)
     projects = docker.list_projects()
