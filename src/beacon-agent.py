@@ -10,6 +10,7 @@ import requests
 import json
 import time
 import logging
+import argparse
 
 from beacon_agent.custom_logging import CustomLogging
 from beacon_agent.system_metrics_reader import SystemMetricsReader
@@ -21,8 +22,13 @@ class BeaconAgent:
         custom_logging = CustomLogging()
         custom_logging.configure_logging()
 
-        with open(config_file, 'r') as file:
-            config = json.load(file)
+        logging.info(f"Using config file: {config_file}")
+        try:
+            with open(config_file, 'r') as file:
+                config = json.load(file)
+        except FileNotFoundError as e:
+            logging.error(f"Config file not found: {e}. Can not continue.!")
+            exit(1)
 
         self.api_url = config['agent']['api_url']
         self.api_key = config['agent']['api_key']
@@ -90,12 +96,20 @@ class BeaconAgent:
         logging.info(json.dumps(metrics, indent=2))
 
 
-if __name__ == "__main__":
+def main():
+    parser = argparse.ArgumentParser(description="Specify config file using -f")
+    parser.add_argument('-f', '--file', type=str, default='/etc/beacon-agen/config.json',
+                        help='Path to the config file')
+    args = parser.parse_args()
 
-    url = 'https://example.com/metrics'
-    agent = BeaconAgent(config_file="../example_config.json")
+    config_file = args.file
+    agent = BeaconAgent(config_file=config_file)
 
     try:
         agent.monitor_system()
     except KeyboardInterrupt:
         logging.info("\nMonitoring interrupted. Exiting gracefully...")
+
+
+if __name__ == "__main__":
+    main()
