@@ -16,6 +16,8 @@ class DockerReader:
             self.enabled = False
             return
 
+        logging.info("Enabled DockerReader")
+
     @staticmethod
     def _run_command(command):
         """

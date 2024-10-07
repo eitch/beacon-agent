@@ -18,6 +18,8 @@ class SmartCtlReader:
         self.smart_data = {}
         self.use_ansi = False
 
+        logging.info("Enabled S.M.A.R.T Reader")
+
     @staticmethod
     def _check_smartctl_available():
         """

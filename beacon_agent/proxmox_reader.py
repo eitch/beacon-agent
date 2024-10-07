@@ -36,6 +36,8 @@ class ProxmoxReader:
         self.node_name = socket.gethostname()
         self.proxmox_data = {}
 
+        logging.info("Enabled ProxmoxReader")
+
     def _get_vm_details(self):
         url = f'{self.base_url}/nodes/{self.node_name}/qemu'
         logging.debug(f"Getting qemu details for node {self.node_name}")

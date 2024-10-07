@@ -16,6 +16,7 @@ class SystemInfoReader:
         }
         self.get_os_info()
         self.get_ip_addresses()
+        logging.info("Enabled SystemInfoReader")
 
     @staticmethod
     def get_kernel_version():

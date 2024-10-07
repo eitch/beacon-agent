@@ -35,6 +35,9 @@ class BeaconAgent:
         self.last_notify_time = 0
         self.metrics = {}
 
+        logging.info(
+            f"Refreshing metrics every {self.refresh_interval_seconds}s, notifying if a threshold reaches {self.notify_threshold_percent}%, or after {self.notify_delay_seconds}s")
+
     def check_threshold(self, metrics):
         most_filled_fs = max(metrics['disk_usage'], key=lambda x: x['used_percent'])
         logging.debug(
