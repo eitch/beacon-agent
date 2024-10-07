@@ -1,5 +1,5 @@
 Package: beacon-agent
-Version: 0.1.0
+Version: __VERSION__
 Architecture: all
 Section: python
 Priority: optional

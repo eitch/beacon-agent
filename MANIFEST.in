@@ -1,0 +1,8 @@
+# Include the README file
+include README.md
+
+# Include the LICENSE file
+include LICENSE
+
+graft DEBIAN
+graft SYSTEMD

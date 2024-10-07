@@ -14,7 +14,7 @@ from beacon_agent.agent import BeaconAgent
 
 def main():
     parser = argparse.ArgumentParser(description="Specify config file using -f")
-    parser.add_argument('-f', '--file', type=str, default='/etc/beacon-agen/config.json',
+    parser.add_argument('-f', '--file', type=str, default='/etc/beacon-agent/config.json',
                         help='Path to the config file')
     args = parser.parse_args()
 

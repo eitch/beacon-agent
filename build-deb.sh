@@ -1,21 +1,20 @@
 #!/bin/bash -e
 SOURCE_DIR="$(cd ${0%/*} ; pwd)"
 
-SOURCE_FILES="${SOURCE_DIR}/src"
 PACKAGE_NAME="beacon-agent"
 PROGRAM_NAME="beacon_agent"
+MODULE_NAME="beacon_agent"
 DIST="${SOURCE_DIR}/dist"
 TARGET="${DIST}/${PACKAGE_NAME}"
 DATE="$(date +"%Y-%m-%d %H:%M:%S")"
-VERSION="$(cat DEBIAN/control | grep Version: | cut -d ' ' -f 2)"
+# shellcheck disable=SC2002
+VERSION="$(cat setup.py | grep version= | tr -d '"' | tr -d , | cut -d '=' -f 2)"
 
 echo "INFO: Building package ${PACKAGE_NAME} with version ${VERSION}"
 
 echo -e "INFO: Cleaning build..."
 rm -rf "${DIST}"
-rm -rf "${SOURCE_FILES}/__pycache__"
-find "${SOURCE_FILES}" -type d -name '__pycache__' -exec rm -rf {} +
-mkdir -p "${TARGET}/"
+mkdir -p "${TARGET}"
 
 # copy files
 echo -e "INFO: Copying files..."
@@ -26,13 +25,16 @@ mkdir -p "${TARGET}/lib/systemd/system"
 mkdir -p "${TARGET}/usr/lib/python3/dist-packages/${PROGRAM_NAME}/"
 cp -r DEBIAN "${TARGET}/DEBIAN"
 cp SYSTEMD/* "${TARGET}/lib/systemd/system/"
-cp "${SOURCE_FILES}/beacon_agent_main.py" "${TARGET}/usr/bin/${PACKAGE_NAME}"
-cp -r "${SOURCE_FILES}/${PROGRAM_NAME}/"* "${TARGET}/usr/lib/python3/dist-packages/${PROGRAM_NAME}/"
+cp "beacon_agent_main.py" "${TARGET}/usr/bin/${PACKAGE_NAME}"
+cp -r "${MODULE_NAME}" "${TARGET}/usr/lib/python3/dist-packages/"
+
+sed -i "s/__VERSION__/${VERSION}/" "${TARGET}/DEBIAN/control"
+find "${TARGET}" -type d -name '__pycache__' -exec rm -rf {} +
 
 # generate man pages
 echo -e "INFO: Generating man pages..."
 gzip --best -n -c CHANGELOG > "${TARGET}/usr/share/doc/${PACKAGE_NAME}/changelog.gz"
-cp COPYRIGHT "${TARGET}/usr/share/doc/${PACKAGE_NAME}/copyright"
+cp LICENSE "${TARGET}/usr/share/doc/${PACKAGE_NAME}/copyright"
 cat MANPAGE | sed "s/__VERSION__/${VERSION}/" | sed "s/__DATE__/${DATE}/" | gzip --best -n > "${TARGET}/usr/share/man/man1/${PACKAGE_NAME}.1.gz"
 
 # copy example config

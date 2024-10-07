@@ -10,7 +10,7 @@ from .system_metrics_reader import SystemMetricsReader
 
 
 class BeaconAgent:
-    def __init__(self, config_file="/etc/beacon-agent/config.json"):
+    def __init__(self, config_file):
 
         custom_logging = CustomLogging()
         custom_logging.configure_logging()
