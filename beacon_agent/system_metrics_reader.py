@@ -1,11 +1,3 @@
-#!/usr/bin/python3
-
-#
-# Prerequisites
-#
-#   sudo apt install python3-requests python3-psutil python3-docker
-#
-
 import subprocess
 import re
 import time
@@ -18,10 +10,10 @@ try:
 except ImportError:
     psutil = None
 
-from docker_reader import DockerReader
-from smartctl_reader import SmartCtlReader
-from system_info_reader import SystemInfoReader
-from proxmox_reader import ProxmoxReader
+from .docker_reader import DockerReader
+from .smartctl_reader import SmartCtlReader
+from .system_info_reader import SystemInfoReader
+from .proxmox_reader import ProxmoxReader
 
 
 class SystemMetricsReader:

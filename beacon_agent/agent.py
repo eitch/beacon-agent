@@ -4,9 +4,9 @@ import time
 
 import requests
 
-from agent_config import AgentConfig
-from custom_logging import CustomLogging
-from system_metrics_reader import SystemMetricsReader
+from .agent_config import AgentConfig
+from .custom_logging import CustomLogging
+from .system_metrics_reader import SystemMetricsReader
 
 
 class BeaconAgent:
