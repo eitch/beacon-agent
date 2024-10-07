@@ -9,6 +9,8 @@ beacon-agent \- Agent to send system metrics periodically to a UptimeBeacon serv
 .br
 .SH DESCRIPTION
 Agent to send system metrics periodically to a UptimeBeacon server
+.PP
+Copy and modify the example config /usr/share/doc/beacon-agent/example_config.json to /etc/beacon-agent/config.json
 .SH AUTHORS
 Robert von Burg <eitch@eitchnet.ch>
 .PP

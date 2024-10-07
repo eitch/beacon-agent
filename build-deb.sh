@@ -35,6 +35,9 @@ gzip --best -n -c CHANGELOG > "${TARGET}/usr/share/doc/${PACKAGE_NAME}/changelog
 cp COPYRIGHT "${TARGET}/usr/share/doc/${PACKAGE_NAME}/copyright"
 cat MANPAGE | sed "s/__VERSION__/${VERSION}/" | sed "s/__DATE__/${DATE}/" | gzip --best -n > "${TARGET}/usr/share/man/man1/${PACKAGE_NAME}.1.gz"
 
+# copy example config
+cp "${SOURCE_DIR}/example_config.json" "${TARGET}/usr/share/doc/${PACKAGE_NAME}"
+
 # fix permissions
 echo -e "INFO: Setting permissions..."
 find "${TARGET}/" -type d -exec chmod 0755 {} +
