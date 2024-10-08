@@ -7,7 +7,7 @@ if ! [[ -d "${SCRIPT_DIR}/venv" ]] ; then
   ./venv/bin/pip install requests
 fi
 
-python3 -m compileall "${SCRIPT_DIR}/src/"
-sudo "${SCRIPT_DIR}/src/beacon-agent.py" -f example_config.json
+python3 -m compileall beacon_agent
+sudo "${SCRIPT_DIR}/beacon_agent_main.py" -f example_config.json
 
 exit 0

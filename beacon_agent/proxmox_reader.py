@@ -95,12 +95,12 @@ class ProxmoxReader:
 
 
 if __name__ == "__main__":
-    from custom_logging import CustomLogging
-    from agent_config import AgentConfig
+    from .custom_logging import CustomLogging
+    from .agent_config import AgentConfig
     custom_logging = CustomLogging()
     custom_logging.configure_logging()
 
-    with open('../../example_config.json', 'r') as file:
+    with open('example_config.json', 'r') as file:
         config = json.load(file)
     config = AgentConfig(config)
 
