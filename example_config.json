@@ -1,5 +1,6 @@
 {
   "agent": {
+    "api_type" : "UptimeKuma",
     "api_url": "http://api.example.com",
     "api_key": "your_api_key_here",
     "refresh_interval_seconds": 10,

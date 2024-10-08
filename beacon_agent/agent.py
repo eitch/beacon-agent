@@ -25,6 +25,7 @@ class BeaconAgent:
 
         self.config = AgentConfig(config_json)
 
+        self.api_type = self.config.get_config_value(['agent', 'api_type'])
         self.api_url = self.config.get_config_value(['agent', 'api_url'])
         self.api_key = self.config.get_config_value(['agent', 'api_key'])
 
@@ -34,6 +35,7 @@ class BeaconAgent:
         self.system_metrics_reader = SystemMetricsReader(self.config)
         self.last_notify_time = 0
         self.metrics = {}
+        self.latency = 0
 
         logging.info(
             f"Refreshing metrics every {self.refresh_interval_seconds}s, notifying if a threshold reaches {self.notify_threshold_percent}%, or after {self.notify_delay_seconds}s")
@@ -60,8 +62,8 @@ class BeaconAgent:
         while True:
             start = time.time()
             metrics = self.system_metrics_reader.get_system_metrics()
-            took = time.time() - start
-            logging.info(f"Metrics refresh took {took:.3f}s")
+            self.latency = time.time() - start
+            logging.info(f"Metrics refresh took {self.latency:.3f}s")
             last_notify_delay = time.time() - self.last_notify_time
             if last_notify_delay > self.notify_delay_seconds or self.check_threshold(metrics):
                 self.send_metrics(metrics)
@@ -95,30 +97,92 @@ class BeaconAgent:
             logging.warning(
                 f"Disk threshold reached at {most_filled_fs['mount_point']} at {most_filled_fs['used_percent']}% used")
 
+        security_upgrade_count = metrics["package_security_upgrade_count"]
+        if security_upgrade_count > 0:
+            logging.warning(f"{security_upgrade_count} security package require upgrading!")
+
         return (cpu_threshold > self.notify_threshold_percent or
                 memory_threshold > self.notify_threshold_percent or
                 disk_threshold > self.notify_threshold_percent or
+                security_upgrade_count > 0 or
                 disks_with_critical_warnings or
                 containers_not_running)
 
     def send_metrics(self, metrics):
-        logging.info("Data sent successfully:")
+
+        match self.api_type:
+            case 'Simulated':
+                self.send_simulated(metrics)
+            case 'UptimeKuma':
+                self.send_to_uptime_kuma(metrics)
+            case _:
+                logging.error("Unknown api_type! Sending simulated!")
+                self.send_simulated(metrics)
+
+        # headers = {'Content-Type': 'application/json'}
+        # try:
+        #     response = requests.post(self.push_url, data=json.dumps(metrics), headers=headers)
+        #     if response.status_code == 200:
+        #         logging.info("Data sent successfully:")
+        #         self.pretty_print_metrics(metrics)
+        #     else:
+        #         logging.info(f"Failed to send data. Status code: {response.status_code}")
+        # except requests.exceptions.RequestException as e:
+        #     logging.info(f"Error sending data: {e}")
+
+        self.last_notify_time = time.time()
+
+    def send_simulated(self, metrics):
+        logging.info("Doing a simulated send of:")
         self.pretty_print_metrics(metrics)
-        self.last_notify_time = time.time()
-        return
+        logging.info("Successful simulated send")
 
-        headers = {'Content-Type': 'application/json'}
-        try:
-            response = requests.post(self.push_url, data=json.dumps(metrics), headers=headers)
-            if response.status_code == 200:
-                logging.info("Data sent successfully:")
-                self.pretty_print_metrics(metrics)
-            else:
-                logging.info(f"Failed to send data. Status code: {response.status_code}")
-        except requests.exceptions.RequestException as e:
-            logging.info(f"Error sending data: {e}")
+    def send_to_uptime_kuma(self, metrics):
 
-        self.last_notify_time = time.time()
+        # extract what we need for UptimeKuma:
+        status = "up"
+        kuma_text = ""
+
+        cpu_threshold = metrics['cpu_load_percent'] > self.notify_threshold_percent
+        memory_threshold = metrics['memory_info']['percent']
+        most_filled_fs = max(metrics['disk_usage'], key=lambda x: x['used_percent'])
+        disk_threshold = most_filled_fs['used_percent']
+        if cpu_threshold > self.notify_threshold_percent:
+            status = "down"
+            kuma_text += f"CPU threshold reached at {cpu_threshold}%"
+        if memory_threshold > self.notify_threshold_percent:
+            status = "down"
+            kuma_text += f"Memory threshold reached at {memory_threshold}%"
+        if disk_threshold > self.notify_threshold_percent:
+            status = "down"
+            kuma_text += f"Disk threshold reached at {most_filled_fs['mount_point']} at {most_filled_fs['used_percent']}% used"
+
+        security_upgrade_count = metrics["package_security_upgrade_count"]
+        if security_upgrade_count > 0:
+            status = "down"
+            kuma_text += f"{security_upgrade_count} security package require upgrading!"
+
+        disks_with_critical_warnings = dict(
+            filter(self.has_smart_critical_warning, metrics['smart_monitor_data'].items()))
+        if disks_with_critical_warnings:
+            status = "down"
+            for item in disks_with_critical_warnings.items():
+                label, disk = item
+                kuma_text += f"Disk {label} FAILED\n"
+        containers_not_running = dict(
+            filter(self.is_container_not_running, metrics['docker_projects'].items()))
+        if containers_not_running:
+            status = "down"
+            for item in containers_not_running.items():
+                label, containers = item
+                stopped_containers = list(filter(lambda element: element["state"] != "running", containers))
+                for container in stopped_containers:
+                    kuma_text += f"Container {label}:{container['name']} state={container['state']}\n"
+
+        url = f"{self.api_url}?status=${status}&msg=${kuma_text}&ping=${self.latency}"
+
+        logging.info(f"Sending to UptimeKuma at URL {self.api_url}")
+        logging.info(f"{kuma_text}")
 
     @staticmethod
     def pretty_print_metrics(metrics):
