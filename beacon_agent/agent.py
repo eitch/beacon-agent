@@ -38,26 +38,16 @@ class BeaconAgent:
         logging.info(
             f"Refreshing metrics every {self.refresh_interval_seconds}s, notifying if a threshold reaches {self.notify_threshold_percent}%, or after {self.notify_delay_seconds}s")
 
-    def check_threshold(self, metrics):
-        most_filled_fs = max(metrics['disk_usage'], key=lambda x: x['used_percent'])
-        logging.debug(
-            f"Most filled file system is mounted on {most_filled_fs['mount_point']} at {most_filled_fs['used_percent']}% used")
+    @staticmethod
+    def has_smart_critical_warning(item):
+        key, disk = item
+        return disk["smart_health_status"] != 'OK'
 
-        cpu_threshold = metrics['cpu_load_percent'] > self.notify_threshold_percent
-        memory_threshold = metrics['memory_info']['percent']
-        disk_threshold = most_filled_fs['used_percent']
-
-        if cpu_threshold > self.notify_threshold_percent:
-            logging.warning(f"CPU threshold reached at {cpu_threshold}%")
-        if memory_threshold > self.notify_threshold_percent:
-            logging.warning(f"Memory threshold reached at {memory_threshold}%")
-        if disk_threshold > self.notify_threshold_percent:
-            logging.warning(
-                f"Disk threshold reached at {most_filled_fs['mount_point']} at {most_filled_fs['used_percent']}% used")
-
-        return (cpu_threshold > self.notify_threshold_percent or
-                memory_threshold > self.notify_threshold_percent or
-                disk_threshold > self.notify_threshold_percent)
+    @staticmethod
+    def is_container_not_running(item):
+        key, containers = item
+        running_elements = list(filter(lambda element: element["state"] != "running", containers))
+        return running_elements is not None and len(running_elements) > 0
 
     def monitor_system(self):
         logging.info(f"Beacon-Agent started and refreshing system state every {self.refresh_interval_seconds}s")
@@ -76,6 +66,40 @@ class BeaconAgent:
             if last_notify_delay > self.notify_delay_seconds or self.check_threshold(metrics):
                 self.send_metrics(metrics)
             time.sleep(self.refresh_interval_seconds)
+
+    def check_threshold(self, metrics):
+        cpu_threshold = metrics['cpu_load_percent'] > self.notify_threshold_percent
+        memory_threshold = metrics['memory_info']['percent']
+
+        most_filled_fs = max(metrics['disk_usage'], key=lambda x: x['used_percent'])
+        disk_threshold = most_filled_fs['used_percent']
+        logging.debug(
+            f"Most filled file system is mounted on {most_filled_fs['mount_point']} at {most_filled_fs['used_percent']}% used")
+
+        disks_with_critical_warnings = dict(
+            filter(self.has_smart_critical_warning, metrics['smart_monitor_data'].items()))
+        if disks_with_critical_warnings:
+            logging.warning(
+                f"The following disks have a critical warning: {', '.join(disks_with_critical_warnings.keys())}")
+        containers_not_running = dict(
+            filter(self.is_container_not_running, metrics['docker_projects'].items()))
+        if containers_not_running:
+            logging.warning(
+                f"The following containers are not running: {', '.join(containers_not_running.keys())}")
+
+        if cpu_threshold > self.notify_threshold_percent:
+            logging.warning(f"CPU threshold reached at {cpu_threshold}%")
+        if memory_threshold > self.notify_threshold_percent:
+            logging.warning(f"Memory threshold reached at {memory_threshold}%")
+        if disk_threshold > self.notify_threshold_percent:
+            logging.warning(
+                f"Disk threshold reached at {most_filled_fs['mount_point']} at {most_filled_fs['used_percent']}% used")
+
+        return (cpu_threshold > self.notify_threshold_percent or
+                memory_threshold > self.notify_threshold_percent or
+                disk_threshold > self.notify_threshold_percent or
+                disks_with_critical_warnings or
+                containers_not_running)
 
     def send_metrics(self, metrics):
         logging.info("Data sent successfully:")

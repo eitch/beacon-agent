@@ -202,7 +202,7 @@ class SystemMetricsReader:
         if smart_data is not None:
             self.last_metrics['smart_monitor_data'] = smart_data
         if docker_projects is not None:
-            self.last_metrics['docker_compose_projects'] = docker_projects
+            self.last_metrics['docker_projects'] = docker_projects
         if proxmox_data is not None:
             self.last_metrics['proxmox_data'] = proxmox_data
 

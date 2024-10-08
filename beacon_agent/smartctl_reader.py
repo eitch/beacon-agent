@@ -43,7 +43,7 @@ class SmartCtlReader:
         if not self._check_smartctl_available():
             return {"error": "smartctl command is not available. Please install smartmontools."}
 
-        smart_data = {'is_nvme': 'false'}
+        smart_data = {'is_nvme': 'false', 'smart_health_status': 'NOK'}
 
         try:
             # Execute the smartctl command
@@ -61,15 +61,13 @@ class SmartCtlReader:
 
             # evaluate smart health status
             output_lines = result.stdout.splitlines()
-            status = 'NOK'
             for line in output_lines:
                 if line.startswith('SMART Health Status:') and line == "SMART Health Status: OK":
-                    status = "OK"
+                    smart_data['smart_health_status'] = "OK"
                     break
                 if "SMART overall-health self-assessment test result" in line and "PASSED" in line:
-                    status = "OK"
+                    smart_data['smart_health_status'] = "OK"
                     break
-            smart_data['smart_health_status'] = status
 
             # try and get additional data
             result = subprocess.run(['smartctl', '-a', device], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -133,7 +131,7 @@ class SmartCtlReader:
         """
 
         logging.debug(f"Getting NVME status data for {device}...")
-        status = {'is_nvme': 'true'}
+        status = {'is_nvme': 'true', 'smart_health_status': 'NOK'}
         try:
             # Run the nvme smart-log command to get S.M.A.R.T. information
             env = os.environ.copy()
@@ -141,19 +139,23 @@ class SmartCtlReader:
                 env["LANG"] = "ANSI"
             nvme_output = subprocess.run(['nvme', 'smart-log', device], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                          text=True, env=env, encoding='utf-8')
-            if nvme_output.returncode == 0:
-                # Parse the output to extract the S.M.A.R.T. information
-                for line in nvme_output.stdout.splitlines():
-                    # Example line: "critical_warning: 0"
-                    if line:
-                        key, value = line.split(':', 1)
-                        status[key.strip()] = value.strip()
-                return status
-            else:
+            if nvme_output.returncode != 0:
                 # Handle permission denied errors gracefully
                 if "Permission denied" in nvme_output.stderr:
                     return {"error": f"Permission denied when accessing {device}. Please run as superuser."}
                 return {"error": f"Failed to retrieve status for {device}: {nvme_output.stderr.strip()}"}
+
+            # Parse the output to extract the S.M.A.R.T. information
+            for line in nvme_output.stdout.splitlines():
+                # Example line: "critical_warning: 0"
+                if line:
+                    key, value = line.split(':', 1)
+                    status[key.strip()] = value.strip()
+
+            if "critical_warning" in status and int(status["critical_warning"] or 0) == 0:
+                status['smart_health_status'] = 'OK'
+
+            return status
 
         except UnicodeDecodeError as e:
             if self.use_ansi:

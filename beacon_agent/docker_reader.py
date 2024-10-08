@@ -55,7 +55,7 @@ class DockerReader:
             logging.error("docker command is not available. Please disable docker reader!")
             return []
 
-        command = ["docker", "ps", "--format", "{{json .}}"]
+        command = ["docker", "ps", "--all", "--format", "{{json .}}"]
         output = self._run_command(command)
 
         if not output:
@@ -91,6 +91,7 @@ class DockerReader:
             container_details = {
                 'container_id': container['ID'],
                 'image': container['Image'],
+                'state': container['State'],
                 'status': container['Status'],
                 'name': container['Names'],
                 'labels': labels
