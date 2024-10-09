@@ -3,6 +3,7 @@
     "api_type" : "UptimeKuma",
     "api_url": "http://api.example.com",
     "api_key": "your_api_key_here",
+    "api_url": "https://status.eitchnet.ch/api/push",
     "refresh_interval_seconds": 10,
     "notify_delay_minutes": 10,
     "notify_threshold_percent": 90
