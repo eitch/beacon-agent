@@ -45,13 +45,17 @@ class BeaconAgent:
     @staticmethod
     def has_smart_critical_warning(item):
         key, disk = item
-        return disk["smart_health_status"] != 'OK'
+        return "smart_health_status" in disk and disk["smart_health_status"] != 'OK'
 
     @staticmethod
     def is_container_not_running(item):
         key, containers = item
         running_elements = list(filter(lambda element: element["state"] != "running", containers))
         return running_elements is not None and len(running_elements) > 0
+
+    @staticmethod
+    def is_vm_lxc_not_running(vm_lxc):
+        return vm_lxc['status'] != "running"
 
     def monitor_system(self):
         logging.info(f"Beacon-Agent started and refreshing system state every {self.refresh_interval_seconds}s")
@@ -88,11 +92,33 @@ class BeaconAgent:
         if disks_with_critical_warnings:
             logging.warning(
                 f"The following disks have a critical warning: {', '.join(disks_with_critical_warnings.keys())}")
-        containers_not_running = dict(
-            filter(self.is_container_not_running, metrics['docker_projects'].items()))
-        if containers_not_running:
-            logging.warning(
-                f"The following containers are not running: {', '.join(containers_not_running.keys())}")
+
+        containers_not_running = []
+        if 'docker_projects' in metrics:
+            containers_not_running = dict(
+                filter(self.is_container_not_running, metrics['docker_projects'].items()))
+            if containers_not_running:
+                logging.warning(
+                    f"The following containers are not running: {', '.join(containers_not_running.keys())}")
+
+        vms_not_running = []
+        lxc_not_running = []
+        if 'proxmox_data' in metrics:
+            proxmox_data = metrics["proxmox_data"]
+
+            if 'vms' in proxmox_data:
+                vms_not_running = dict(
+                    filter(self.is_vm_lxc_not_running, proxmox_data['vms']))
+                if vms_not_running:
+                    logging.warning(
+                        f"The following VMs are not running: {', '.join(vms_not_running.keys())}")
+
+            if 'containers' in proxmox_data:
+                lxc_not_running = dict(
+                    filter(self.is_vm_lxc_not_running, proxmox_data['containers']))
+                if lxc_not_running:
+                    logging.warning(
+                        f"The following LXCs are not running: {', '.join(lxc_not_running.keys())}")
 
         if cpu_threshold > self.notify_threshold_percent:
             logging.warning(f"CPU threshold reached at {cpu_threshold}%")
@@ -111,10 +137,10 @@ class BeaconAgent:
                 disk_threshold > self.notify_threshold_percent or
                 security_upgrade_count > 0 or
                 disks_with_critical_warnings or
-                containers_not_running)
+                containers_not_running or
+                vms_not_running or lxc_not_running)
 
     def send_metrics(self, metrics):
-
         match self.api_type:
             case 'Simulated':
                 self.send_simulated(metrics)
@@ -123,17 +149,6 @@ class BeaconAgent:
             case _:
                 logging.error("Unknown api_type! Sending simulated!")
                 self.send_simulated(metrics)
-
-        # headers = {'Content-Type': 'application/json'}
-        # try:
-        #     response = requests.post(self.push_url, data=json.dumps(metrics), headers=headers)
-        #     if response.status_code == 200:
-        #         logging.info("Data sent successfully:")
-        #         self.pretty_print_metrics(metrics)
-        #     else:
-        #         logging.info(f"Failed to send data. Status code: {response.status_code}")
-        # except requests.exceptions.RequestException as e:
-        #     logging.info(f"Error sending data: {e}")
 
         self.last_notify_time = time.time()
 
@@ -182,17 +197,41 @@ class BeaconAgent:
                 label, disk = item
                 kuma_text += f"Disk {label} FAILED. "
 
-        containers_not_running = dict(
-            filter(self.is_container_not_running, metrics['docker_projects'].items()))
-        if len(containers_not_running) == 0:
-            kuma_text += "All containers running. "
-        else:
-            status = "down"
-            for item in containers_not_running.items():
-                label, containers = item
-                stopped_containers = list(filter(lambda element: element["state"] != "running", containers))
-                for container in stopped_containers:
-                    kuma_text += f"Container {label}:{container['name']} state={container['state']}. "
+        containers_not_running = []
+        if 'docker_projects' in metrics:
+            containers_not_running = dict(
+                filter(self.is_container_not_running, metrics['docker_projects'].items()))
+            if len(containers_not_running) == 0:
+                kuma_text += "All containers running. "
+            else:
+                status = "down"
+                for item in containers_not_running.items():
+                    label, containers = item
+                    stopped_containers = list(filter(lambda element: element["state"] != "running", containers))
+                    for container in stopped_containers:
+                        kuma_text += f"Container {label}:{container['name']} state={container['state']}. "
+
+        if "proxmox_data" in metrics:
+            proxmox_data = metrics["proxmox_data"]
+            if 'vms' in proxmox_data:
+                vms_not_running = dict(
+                    filter(self.is_vm_lxc_not_running, proxmox_data['vms']))
+                if len(vms_not_running) == 0:
+                    kuma_text += "All VMs running. "
+                else:
+                    status = "down"
+                    for vm in vms_not_running:
+                        kuma_text += f"VM {vm['name']} state={vm['status']}. "
+
+            if 'containers' in proxmox_data:
+                lxc_not_running = dict(
+                    filter(self.is_vm_lxc_not_running, proxmox_data['containers']))
+                if len(lxc_not_running) == 0:
+                    kuma_text += "All LXCs running. "
+                else:
+                    status = "down"
+                    for lxc in lxc_not_running:
+                        kuma_text += f"LXC {lxc_not_running['name']} state={lxc_not_running['status']}. "
 
         encoded = quote(kuma_text)
         url = f"{self.api_url}/{self.api_key}?status={status}&msg={encoded}&ping={self.latency}"

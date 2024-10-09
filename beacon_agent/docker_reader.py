@@ -6,7 +6,7 @@ import logging
 
 class DockerReader:
     def __init__(self, config):
-        """Initialize the DockerComposeReader."""
+        """Initialize the DockerReader."""
         self.enabled = config.get_config_value(["docker", "enabled"], default=False)
         if not self.enabled:
             return
@@ -73,7 +73,7 @@ class DockerReader:
         return containers
 
     def list_projects(self):
-        """List Docker Compose projects and their details."""
+        """List Docker containers, grouping by label com.docker.compose.project"""
         if not self.enabled:
             return None
 
@@ -138,9 +138,9 @@ class DockerReader:
 
     @staticmethod
     def print_projects_details(projects):
-        """Print details of each Docker Compose project."""
+        """Print details of each Docker project."""
         if not projects:
-            logging.info("No Docker Compose projects found.")
+            logging.info("No Docker projects found.")
             return
 
         for project, containers in projects.items():
