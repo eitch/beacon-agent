@@ -1,11 +1,13 @@
 #!/bin/bash
 
+PACKAGE_NAME="beacon-agent"
+
 # Function to parse the version from the setup.py file
 get_version() {
   local setup_file="setup.py"
   if [ -f "$setup_file" ]; then
     version=$(grep -Po "(?<=version=\")[^\"]*" "$setup_file")
-    echo $version
+    echo "${version}"
   else
     echo "Error: setup.py file not found!"
     exit 1
@@ -19,7 +21,7 @@ VERSION=$(get_version)
 mkdir -p dist
 
 # Define the output tarball name
-OUTPUT_TARBALL="dist/beacon-agent-${VERSION}.tar.gz"
+OUTPUT_TARBALL="dist/${PACKAGE_NAME}-${VERSION}.tar.gz"
 
 # Define the directories and files to include
 INCLUDE_ITEMS=(
@@ -27,24 +29,26 @@ INCLUDE_ITEMS=(
   "SYSTEMD"
   "beacon_agent_main.py"
   "run.sh"
+  "example_config.json"
 )
 
 # Create a temporary directory to hold the files
 TMP_DIR=$(mktemp -d)
+mkdir "${TMP_DIR}/${PACKAGE_NAME}"
 
 # Copy the items into the temporary directory and rename SYSTEMD to systemd, exclude __pycache__
 for ITEM in "${INCLUDE_ITEMS[@]}"; do
     if [ "$ITEM" == "SYSTEMD" ]; then
-        rsync -avr --exclude='__pycache__' "$ITEM/" "$TMP_DIR/systemd"
+        rsync -ar --exclude='__pycache__' "$ITEM/" "$TMP_DIR/${PACKAGE_NAME}/systemd"
     else
-        rsync -avr --exclude='__pycache__' "$ITEM" "$TMP_DIR/"
+        rsync -ar --exclude='__pycache__' "$ITEM" "$TMP_DIR/${PACKAGE_NAME}/"
     fi
 done
 
 # Create the tarball from the temporary directory
-tar --exclude='__pycache__' -czvf $OUTPUT_TARBALL -C $TMP_DIR .
+tar --exclude='__pycache__' -czvf "${OUTPUT_TARBALL}" -C "${TMP_DIR}" .
 
 # Clean up the temporary directory
-rm -rf $TMP_DIR
+rm -rf "${TMP_DIR}"
 
 echo "Tarball $OUTPUT_TARBALL created successfully."

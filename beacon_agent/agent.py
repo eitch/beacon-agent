@@ -143,15 +143,13 @@ class BeaconAgent:
                 vms_not_running or lxc_not_running)
 
     def send_metrics(self, metrics):
-        match self.api_type:
-            case 'Simulated':
-                self.send_simulated(metrics)
-            case 'UptimeKuma':
-                self.send_to_uptime_kuma(metrics)
-            case _:
-                logging.error("Unknown api_type! Sending simulated!")
-                self.send_simulated(metrics)
-
+        if self.api_type == 'Simulated':
+            self.send_simulated(metrics)
+        elif self.api_type == 'UptimeKuma':
+            self.send_to_uptime_kuma(metrics)
+        else:
+            logging.error("Unknown api_type! Sending simulated!")
+            self.send_simulated(metrics)
         self.last_notify_time = time.time()
 
     def send_simulated(self, metrics):
