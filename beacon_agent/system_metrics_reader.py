@@ -180,7 +180,7 @@ class SystemMetricsReader:
         security_count, non_security_count = self.count_upgradable_packages()
 
         # read S.M.A.R.T data for all devices
-        smart_data = self.smartctl_reader.read_smartdata_for_all_devices()
+        smart_data, missing_disks = self.smartctl_reader.read_smartdata_for_all_devices()
 
         # Fetch all Docker Compose projects
         docker_projects = self.docker_reader.list_projects()
@@ -209,6 +209,8 @@ class SystemMetricsReader:
 
         if smart_data is not None:
             self.last_metrics['smart_monitor_data'] = smart_data
+        if missing_disks is not None:
+            self.last_metrics['missing_disks'] = missing_disks
         if docker_projects is not None:
             self.last_metrics['docker_projects'] = docker_projects
         if proxmox_data is not None:

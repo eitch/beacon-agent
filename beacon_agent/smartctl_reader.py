@@ -2,9 +2,10 @@ import subprocess
 import logging
 import shutil
 import glob
-import re
 import json
 import os
+import re
+import string
 
 
 class SmartCtlReader:
@@ -42,7 +43,51 @@ class SmartCtlReader:
             smart_data[device] = data
 
         self.smart_data = {key: smart_data[key] for key in sorted(smart_data.keys())}
-        return self.smart_data
+
+        missing_disks = self.find_missing_indices(self.smart_data)
+        return self.smart_data, missing_disks
+
+    @staticmethod
+    def find_missing_indices(disk_dict):
+        nvme_values = sorted(
+            [int(re.search(r'\d+', key).group()) for key in disk_dict.keys() if key.startswith('/dev/nvme')])
+        sata_values = sorted(
+            [int(re.search(r'\d+', key).group()) for key in disk_dict.keys() if key.startswith('/dev/sata')])
+        sd_values = sorted(
+            [re.search(r'/dev/sd([a-z])', key).group(1) for key in disk_dict.keys() if key.startswith('/dev/sd')])
+        sg_values = sorted(
+            [int(re.search(r'\d+', key).group()) for key in disk_dict.keys() if key.startswith('/dev/sg')])
+
+        def missing_numeric_indices(values, start):
+            if not values:
+                return []
+            full_range = range(start, max(values[-1], len(values)))
+            return sorted(set(full_range) - set(values))
+
+        def missing_alpha_indices(values):
+            if not values:
+                return []
+            full_range = list(string.ascii_lowercase[:max(len(values), string.ascii_lowercase.index(values[-1]) + 1)])
+            return sorted(set(full_range) - set(values))
+
+        missing_nvme = missing_numeric_indices(nvme_values, 0)
+        missing_sata = missing_numeric_indices(sata_values, 1)
+        missing_sd = missing_alpha_indices(sd_values)
+        missing_sg = missing_numeric_indices(sg_values, 0)
+
+        if not missing_nvme and not missing_sata and not missing_sd and not missing_sg:
+            return None
+
+        result = {}
+        if missing_nvme:
+            result['nvme'] = missing_nvme
+        if missing_sata:
+            result['sata'] = missing_sata
+        if missing_sd:
+            result['sd'] = missing_sd
+        if missing_sg:
+            result['sg'] = missing_sg
+        return result
 
     @staticmethod
     def _check_smartctl_available():

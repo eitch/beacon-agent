@@ -103,6 +103,11 @@ class BeaconAgent:
                 logging.warning(
                     f"The following disks have a critical warning: {', '.join(disks_with_critical_warnings.keys())}")
 
+        missing_disks = None
+        if 'missing_disks' in self.metrics:
+            missing_disks = self.metrics['missing_disks']
+            logging.error(f"The following disks are missing: {json.dumps(missing_disks)}")
+
         containers_not_running = []
         if 'docker_projects' in self.metrics:
             containers_not_running = dict(
@@ -146,7 +151,7 @@ class BeaconAgent:
                 memory_threshold > self.notify_threshold_percent or
                 disk_threshold > self.notify_threshold_percent or
                 security_upgrade_count > 0 or
-                disks_with_critical_warnings or
+                disks_with_critical_warnings or missing_disks or
                 containers_not_running or
                 vms_not_running or lxc_not_running)
 
@@ -197,10 +202,15 @@ class BeaconAgent:
                 status = "down"
                 kuma_text += f"{security_upgrade_count} security package require upgrading! "
 
+        missing_disks = None
+        if 'missing_disks' in self.metrics:
+            missing_disks = self.metrics['missing_disks']
+            status = "down"
+            kuma_text += f"Missing disks: {json.dumps(missing_disks)}. "
         if 'smart_monitor_data' in metrics:
             disks_with_critical_warnings = dict(
                 filter(self.has_smart_critical_warning, metrics['smart_monitor_data'].items()))
-            if len(disks_with_critical_warnings) == 0:
+            if len(disks_with_critical_warnings) == 0 and missing_disks is None:
                 kuma_text += "All disks OK. "
             else:
                 status = "down"
@@ -245,14 +255,11 @@ class BeaconAgent:
 
         kuma_text += f"Agent:{AGENT_VERSION}"
 
-        encoded = quote(kuma_text)
-        url = f"{self.api_url}/{self.api_key}?status={status}&msg={encoded}&ping={self.latency}"
-        if logging.getLogger().isEnabledFor(logging.DEBUG):
-            logging.info(f"Sending to UptimeKuma at URL {url}")
-        else:
-            logging.info(f"Sending to UptimeKuma at URL {self.api_url}")
+        url = f"{self.api_url}/{self.api_key}"
+        logging.info(f"Sending status {status} to UptimeKuma at URL {self.api_url}")
+        # logging.info(f"Kuma message: {kuma_text}")
         try:
-            response = requests.get(url, data=json.dumps(metrics))
+            response = requests.get(url, {"status": status, "msg": kuma_text, "ping": self.latency})
             if response.status_code == 200:
                 logging.info("Data sent successfully to UptimeKuma")
             else:
