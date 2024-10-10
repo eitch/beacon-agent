@@ -1,7 +1,6 @@
 import json
 import logging
 import time
-from urllib.parse import quote
 
 import requests
 
@@ -79,14 +78,14 @@ class BeaconAgent:
             self._read_metrics()
 
             last_notify_delay = time.time() - self.last_notify_time
-            threshold_reached = self._threshold_reached()
-            if last_notify_delay > self.notify_delay_seconds or threshold_reached or (
+            threshold_reached, error_msg = self._threshold_reached()
+            if error_msg or last_notify_delay > self.notify_delay_seconds or threshold_reached or (
                     not threshold_reached and self.previous_threshold_nok):
                 self.previous_threshold_nok = threshold_reached
-                self.send_metrics()
+                self.send_metrics(error_msg)
             time.sleep(self.refresh_interval_seconds)
 
-    def _threshold_reached(self) -> bool:
+    def _threshold_reached(self):
         cpu_threshold = self.metrics['cpu_load_percent'] > self.notify_threshold_percent
         memory_threshold = self.metrics['memory_info']['percent']
 
@@ -95,10 +94,15 @@ class BeaconAgent:
         logging.debug(
             f"Most filled file system is mounted on {most_filled_fs['mount_point']} at {most_filled_fs['used_percent']}% used")
 
+        error_msg = []
+
         disks_with_critical_warnings = []
         if 'smart_monitor_data' in self.metrics:
+            data = self.metrics['smart_monitor_data']
+            if 'error' in data:
+                error_msg.append(data['error'])
             disks_with_critical_warnings = dict(
-                filter(self.has_smart_critical_warning, self.metrics['smart_monitor_data'].items()))
+                filter(self.has_smart_critical_warning, data.items()))
             if disks_with_critical_warnings:
                 logging.warning(
                     f"The following disks have a critical warning: {', '.join(disks_with_critical_warnings.keys())}")
@@ -120,6 +124,8 @@ class BeaconAgent:
         lxc_not_running = []
         if 'proxmox_data' in self.metrics:
             proxmox_data = self.metrics["proxmox_data"]
+            if 'error' in proxmox_data:
+                error_msg.append(proxmox_data['error'])
 
             if 'vms' in proxmox_data:
                 vms_not_running = dict(
@@ -153,24 +159,24 @@ class BeaconAgent:
                 security_upgrade_count > 0 or
                 disks_with_critical_warnings or missing_disks or
                 containers_not_running or
-                vms_not_running or lxc_not_running)
+                vms_not_running or lxc_not_running), error_msg
 
-    def send_metrics(self):
+    def send_metrics(self, error_msg=None):
         if self.api_type == 'Simulated':
-            self._send_simulated()
+            self._send_simulated(error_msg)
         elif self.api_type == 'UptimeKuma':
-            self._send_to_uptime_kuma()
+            self._send_to_uptime_kuma(error_msg)
         else:
             logging.error("Unknown api_type! Sending simulated!")
-            self._send_simulated()
+            self._send_simulated(error_msg)
         self.last_notify_time = time.time()
 
-    def _send_simulated(self):
+    def _send_simulated(self, error_msg=None):
         logging.info("Doing a simulated send of:")
-        self._pretty_print_metrics()
+        self._pretty_print_metrics(error_msg)
         logging.info("Successful simulated send")
 
-    def _send_to_uptime_kuma(self):
+    def _send_to_uptime_kuma(self, error_msg=None):
         metrics = self.metrics
 
         # extract what we need for UptimeKuma:
@@ -253,11 +259,15 @@ class BeaconAgent:
                     for lxc in lxc_not_running:
                         kuma_text += f"LXC {lxc['name']} state={lxc['status']}. "
 
-        kuma_text += f"Agent:{AGENT_VERSION}"
+        if error_msg:
+            status = "down"
+            kuma_text += f"ERROR_MSG:{error_msg}. "
+
+        kuma_text += f"Agent:{AGENT_VERSION}. "
 
         url = f"{self.api_url}/{self.api_key}"
         logging.info(f"Sending status {status} to UptimeKuma at URL {self.api_url}")
-        # logging.info(f"Kuma message: {kuma_text}")
+        logging.info(f"Kuma message: {kuma_text}")
         try:
             response = requests.get(url, {"status": status, "msg": kuma_text, "ping": self.latency})
             if response.status_code == 200:
@@ -267,8 +277,10 @@ class BeaconAgent:
         except requests.exceptions.RequestException as e:
             logging.info(f"Error sending data: {e}")
 
-    def _pretty_print_metrics(self):
+    def _pretty_print_metrics(self, error_msg=None):
         logging.info(json.dumps(self.metrics, indent=2))
+        if error_msg:
+            logging.info(f"Error message: {error_msg}")
 
 
 def main():

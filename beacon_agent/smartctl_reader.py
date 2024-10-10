@@ -25,7 +25,7 @@ class SmartCtlReader:
         if not self.enabled:
             return None, None
         if not self._check_smartctl_available():
-            return {"error": "smartctl command is not available. Please install smartmontools."}
+            return {"error": "smartctl command is not available. Please install smartmontools."}, None
 
         self._list_devices()
         logging.debug(f"Getting S.M.A.R.T. data for devices: {self.devices}")
@@ -35,7 +35,7 @@ class SmartCtlReader:
             if device.startswith("/dev/nvme"):
                 if shutil.which("nvme") is None:
                     return {
-                        "error": "nvme command is not available, yet NVME drives were detected! Please install nvme-cli."}
+                        "error": "nvme command is not available, yet NVME drives were detected! Please install nvme-cli."}, None
                 data = self._get_nvme_status(device)
             else:
                 data = self._get_smart_data(device)
