@@ -29,6 +29,8 @@ class SystemMetricsReader:
 
     @staticmethod
     def get_disk_usage_from_df():
+        logging.debug("Getting disk usage from df")
+
         # Execute the command
         result = subprocess.run(
             ['df', '-l', '-x', 'overlay', '-x', 'tmpfs', '-x', 'efivarf', '-x', 'devtmpfs', '-x', 'none'],
@@ -44,7 +46,9 @@ class SystemMetricsReader:
         for line in lines[1:]:
             values = line.split()
 
-            if values[0] in ['overlay', 'tmpfs', 'efivarfs', 'devtmpfs', 'none']:
+            if values[0] in ['overlay', 'tmpfs', 'efivarfs', 'devtmpfs', 'none', 'loop']:
+                continue
+            if '/dev/loop' in values[0]:
                 continue
 
             df_entry = {
@@ -57,6 +61,7 @@ class SystemMetricsReader:
 
             df_dict.append(df_entry)
 
+        df_dict = sorted(df_dict, key=lambda x: x['mount_point'])
         return df_dict
 
     @staticmethod
@@ -90,12 +95,20 @@ class SystemMetricsReader:
         total_time = sum(curr_times) - sum(prev_cpu_times)  # Total time
 
         # Calculate CPU load percentage
-        cpu_load = (1 - (idle_time / total_time)) * 100
+        cpu_load = round((1 - (idle_time / total_time)) * 100, 3)
         self.prev_cpu_times = curr_times
         return cpu_load
 
     # Function to gather metrics from /proc
+    def read_sys_info(self):
+        if psutil is None:
+            self.sys_info = self.get_sys_info_from_proc()
+        else:
+            self.sys_info = self.get_sys_info_from_psutil()
+        return self.sys_info
+
     def get_sys_info_from_proc(self):
+        logging.debug("Getting sys info from proc and df")
 
         cpu_count = self.get_cpu_count()
         cpu_load_percent = self.calculate_cpu_load()
@@ -110,7 +123,7 @@ class SystemMetricsReader:
         free_memory = meminfo_dict.get('MemFree', 0)
         available_memory = meminfo_dict.get('MemAvailable', 0)
         used_memory = total_memory - available_memory
-        memory_percent = (used_memory / total_memory) * 100 if total_memory > 0 else 0
+        memory_percent = int(((used_memory / total_memory) * 100 if total_memory > 0 else 0))
 
         disk_usage = self.get_disk_usage_from_df()
 
@@ -129,6 +142,7 @@ class SystemMetricsReader:
         }
 
     def get_sys_info_from_psutil(self):
+        logging.debug("Getting sys info from psutil")
         cpu_count = psutil.cpu_count(logical=True)
         memory = psutil.virtual_memory()
 
@@ -150,13 +164,6 @@ class SystemMetricsReader:
             },
             'disk_usage': disk_usage,
         }
-
-    def read_sys_info(self):
-        if psutil is None:
-            self.sys_info = self.get_sys_info_from_proc()
-        else:
-            self.sys_info = self.get_sys_info_from_psutil()
-        return self.sys_info
 
     def get_system_metrics(self):
         start_time = time.time()
