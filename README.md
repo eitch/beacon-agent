@@ -42,7 +42,7 @@ Configure your `config.json`, by updating the relevant fields:
     {
       "agent": {
         "api_type": "UptimeKuma",
-        "api_url": "https://status.eitchnet.ch/api/push",
+        "api_url": "https://status.example.ch/api/push",
         "api_key": "your_api_key_here",
         "refresh_interval_seconds": 10,
         "notify_delay_minutes": 10,
