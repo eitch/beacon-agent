@@ -20,6 +20,30 @@ class SmartCtlReader:
 
         logging.info("Enabled S.M.A.R.T Reader")
 
+    def read_smartdata_for_all_devices(self):
+        if not self.enabled:
+            return None
+        if not self._check_smartctl_available():
+            return {"error": "smartctl command is not available. Please install smartmontools."}
+
+        self._list_devices()
+        logging.debug(f"Getting S.M.A.R.T. data for devices: {self.devices}")
+
+        smart_data = {}
+        for device in self.devices:
+            if device.startswith("/dev/nvme"):
+                if shutil.which("nvme") is None:
+                    return {
+                        "error": "nvme command is not available, yet NVME drives were detected! Please install nvme-cli."}
+                data = self._get_nvme_status(device)
+            else:
+                data = self._get_smart_data(device)
+
+            smart_data[device] = data
+
+        self.smart_data = {key: smart_data[key] for key in sorted(smart_data.keys())}
+        return self.smart_data
+
     @staticmethod
     def _check_smartctl_available():
         """
@@ -204,29 +228,6 @@ class SmartCtlReader:
             self.devices.extend([d for d in nvme_devices if 'fabrics' not in d and nvme_pattern.match(d)])
 
         return self.devices
-
-    def read_smartdata_for_all_devices(self):
-        if not self.enabled:
-            return None
-        if not self._check_smartctl_available():
-            return {"error": "smartctl command is not available. Please install smartmontools."}
-
-        self._list_devices()
-        logging.debug(f"Getting S.M.A.R.T. data for devices: {self.devices}")
-
-        self.smart_data = {}
-        for device in self.devices:
-            if device.startswith("/dev/nvme"):
-                if shutil.which("nvme") is None:
-                    return {
-                        "error": "nvme command is not available, yet NVME drives were detected! Please install nvme-cli."}
-                smart_data = self._get_nvme_status(device)
-            else:
-                smart_data = self._get_smart_data(device)
-
-            self.smart_data[device] = smart_data
-
-        return self.smart_data
 
     def print_all_details(self):
         """Print details of each Docker Compose project."""
