@@ -68,7 +68,7 @@ class BeaconAgent:
         while True:
             start = time.time()
             metrics = self.system_metrics_reader.get_system_metrics()
-            self.latency = time.time() - start
+            self.latency = round(time.time() - start, 3)
             logging.info(f"Metrics refresh took {self.latency:.3f}s")
             last_notify_delay = time.time() - self.last_notify_time
             threshold_reached = self.threshold_reached(metrics)
@@ -237,7 +237,10 @@ class BeaconAgent:
 
         encoded = quote(kuma_text)
         url = f"{self.api_url}/{self.api_key}?status={status}&msg={encoded}&ping={self.latency}"
-        logging.info(f"Sending to UptimeKuma at URL {url}")
+        if logging.getLogger().isEnabledFor(logging.DEBUG):
+            logging.info(f"Sending to UptimeKuma at URL {url}")
+        else:
+            logging.info(f"Sending to UptimeKuma at URL {self.api_url}")
         try:
             response = requests.get(url, data=json.dumps(metrics))
             if response.status_code == 200:
