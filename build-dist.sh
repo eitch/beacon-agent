@@ -20,6 +20,7 @@ OUTPUT_TARBALL="dist/${PACKAGE_NAME}-${VERSION}.tar.gz"
 
 # Define the directories and files to include
 INCLUDE_ITEMS=(
+  "README.md"
   "beacon_agent"
   "SYSTEMD"
   "beacon_agent_main.py"
@@ -40,6 +41,9 @@ for ITEM in "${INCLUDE_ITEMS[@]}"; do
         rsync -ar --exclude='__pycache__' "$ITEM" "$TMP_DIR/${PACKAGE_NAME}/"
     fi
 done
+
+# Replace version in systemd file
+sed -i "s/__VERSION__/${VERSION}/" "$TMP_DIR/${PACKAGE_NAME}/systemd/${PACKAGE_NAME}.service"
 
 # Create the tarball from the temporary directory
 tar --exclude='__pycache__' -czvf "${OUTPUT_TARBALL}" -C "${TMP_DIR}" .

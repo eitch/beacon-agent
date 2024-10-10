@@ -1,5 +1,5 @@
 [Unit]
-Description=UptimeBeacon Agent
+Description=UptimeBeacon Agent __VERSION__
 Documentation=man:beacon_agent(1)
 Wants=network.target
 Before=network.target

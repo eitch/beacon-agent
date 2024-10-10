@@ -29,6 +29,7 @@ cp "beacon_agent_main.py" "${TARGET}/usr/bin/${PACKAGE_NAME}"
 cp -r "${MODULE_NAME}" "${TARGET}/usr/lib/python3/dist-packages/"
 
 sed -i "s/__VERSION__/${VERSION}/" "${TARGET}/DEBIAN/control"
+sed -i "s/__VERSION__/${VERSION}/" "${TARGET}/lib/systemd/system/${PACKAGE_NAME}.service"
 find "${TARGET}" -type d -name '__pycache__' -exec rm -rf {} +
 
 # generate man pages

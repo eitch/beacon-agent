@@ -17,6 +17,8 @@ class BeaconAgent:
         custom_logging = CustomLogging()
         custom_logging.configure_logging()
 
+        logging.info(f"Initializing Beacon Agent {AGENT_VERSION} with config file {config_file}")
+
         try:
             with open(config_file, 'r') as file:
                 config_json = json.load(file)

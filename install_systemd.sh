@@ -13,6 +13,6 @@ sed -i "s|^ExecStart=.*|ExecStart=${RUN_SCRIPT_PATH}|" "$SERVICE_FILE"
 cp "${SERVICE_FILE}" /etc/systemd/system/beacon-agent.service
 systemctl daemon-reload
 sudo systemctl enable beacon-agent.service
-sudo systemctl start beacon-agent.service
+sudo systemctl restart beacon-agent.service
 
 exit 0
