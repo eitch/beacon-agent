@@ -233,7 +233,7 @@ class BeaconAgent:
                 else:
                     status = "down"
                     for lxc in lxc_not_running:
-                        kuma_text += f"LXC {lxc_not_running['name']} state={lxc_not_running['status']}. "
+                        kuma_text += f"LXC {lxc['name']} state={lxc['status']}. "
 
         encoded = quote(kuma_text)
         url = f"{self.api_url}/{self.api_key}?status={status}&msg={encoded}&ping={self.latency}"
