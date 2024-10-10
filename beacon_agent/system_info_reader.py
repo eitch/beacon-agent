@@ -49,7 +49,7 @@ class SystemInfoReader:
                 for line in version_file:
                     if 'productversion' in line.lower():
                         self.info['os'] = 'Synology DSM'
-                        self.info['version'] = line.split('=')[1].strip()
+                        self.info['version'] = line.split('=')[1].strip().replace("\"", "")
         except FileNotFoundError:
             pass
 
