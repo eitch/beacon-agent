@@ -23,7 +23,7 @@ class SmartCtlReader:
 
     def read_smartdata_for_all_devices(self):
         if not self.enabled:
-            return None
+            return None, None
         if not self._check_smartctl_available():
             return {"error": "smartctl command is not available. Please install smartmontools."}
 
