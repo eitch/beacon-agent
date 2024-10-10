@@ -33,7 +33,8 @@ Copy the example config and update it for your system:
 
 Install the systemd service:
 
-    /usr/local/lib/beacon-agent/install_systemd.sh
+    sudo /usr/local/lib/beacon-agent/install_systemd.sh
+    sudo journalctl --follow --unit beacon-agent.service
 
 ## Configuration
 Configure your `config.json`, by updating the relevant fields:
