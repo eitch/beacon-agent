@@ -1,10 +1,11 @@
 import json
 import logging
 import time
-from urllib.parse import urlencode, quote
+from urllib.parse import quote
 
 import requests
 
+from beacon_agent import AGENT_VERSION
 from .agent_config import AgentConfig
 from .custom_logging import CustomLogging
 from .system_metrics_reader import SystemMetricsReader
@@ -20,7 +21,7 @@ class BeaconAgent:
             with open(config_file, 'r') as file:
                 config_json = json.load(file)
             logging.info(f"Read config file: {config_file}")
-        except FileNotFoundError as e:
+        except FileNotFoundError:
             logging.error(f"Config file does not exist at {config_file}!")
             exit(1)
 
@@ -62,51 +63,53 @@ class BeaconAgent:
 
         # Send metrics once on startup
         self.metrics = self.system_metrics_reader.get_system_metrics()
-        self.send_metrics(self.metrics)
+        self.send_metrics()
         logging.info(f"Initial system state sent.")
 
         while True:
             start = time.time()
-            metrics = self.system_metrics_reader.get_system_metrics()
+            self.metrics = self.system_metrics_reader.get_system_metrics()
+            self.metrics["version"] = AGENT_VERSION
             self.latency = round(time.time() - start, 3)
-            logging.info(f"Metrics refresh took {self.latency:.3f}s")
+            logging.info(f"Metrics refresh took {self.latency}s")
+
             last_notify_delay = time.time() - self.last_notify_time
-            threshold_reached = self.threshold_reached(metrics)
+            threshold_reached = self.threshold_reached()
             if last_notify_delay > self.notify_delay_seconds or threshold_reached or (
                     not threshold_reached and self.previous_threshold_nok):
                 self.previous_threshold_nok = threshold_reached
-                self.send_metrics(metrics)
+                self.send_metrics()
             time.sleep(self.refresh_interval_seconds)
 
-    def threshold_reached(self, metrics: object) -> bool:
-        cpu_threshold = metrics['cpu_load_percent'] > self.notify_threshold_percent
-        memory_threshold = metrics['memory_info']['percent']
+    def threshold_reached(self) -> bool:
+        cpu_threshold = self.metrics['cpu_load_percent'] > self.notify_threshold_percent
+        memory_threshold = self.metrics['memory_info']['percent']
 
-        most_filled_fs = max(metrics['disk_usage'], key=lambda x: x['used_percent'])
+        most_filled_fs = max(self.metrics['disk_usage'], key=lambda x: x['used_percent'])
         disk_threshold = most_filled_fs['used_percent']
         logging.debug(
             f"Most filled file system is mounted on {most_filled_fs['mount_point']} at {most_filled_fs['used_percent']}% used")
 
         disks_with_critical_warnings = []
-        if 'smart_monitor_data' in metrics:
+        if 'smart_monitor_data' in self.metrics:
             disks_with_critical_warnings = dict(
-                filter(self.has_smart_critical_warning, metrics['smart_monitor_data'].items()))
+                filter(self.has_smart_critical_warning, self.metrics['smart_monitor_data'].items()))
             if disks_with_critical_warnings:
                 logging.warning(
                     f"The following disks have a critical warning: {', '.join(disks_with_critical_warnings.keys())}")
 
         containers_not_running = []
-        if 'docker_projects' in metrics:
+        if 'docker_projects' in self.metrics:
             containers_not_running = dict(
-                filter(self.is_container_not_running, metrics['docker_projects'].items()))
+                filter(self.is_container_not_running, self.metrics['docker_projects'].items()))
             if containers_not_running:
                 logging.warning(
                     f"The following containers are not running: {', '.join(containers_not_running.keys())}")
 
         vms_not_running = []
         lxc_not_running = []
-        if 'proxmox_data' in metrics:
-            proxmox_data = metrics["proxmox_data"]
+        if 'proxmox_data' in self.metrics:
+            proxmox_data = self.metrics["proxmox_data"]
 
             if 'vms' in proxmox_data:
                 vms_not_running = dict(
@@ -130,7 +133,7 @@ class BeaconAgent:
             logging.warning(
                 f"Disk threshold reached at {most_filled_fs['mount_point']} at {most_filled_fs['used_percent']}% used")
 
-        security_upgrade_count = metrics["package_security_upgrade_count"]
+        security_upgrade_count = self.metrics["package_security_upgrade_count"]
         if security_upgrade_count > 0:
             logging.warning(f"{security_upgrade_count} security package require upgrading!")
 
@@ -142,22 +145,23 @@ class BeaconAgent:
                 containers_not_running or
                 vms_not_running or lxc_not_running)
 
-    def send_metrics(self, metrics):
+    def send_metrics(self):
         if self.api_type == 'Simulated':
-            self.send_simulated(metrics)
+            self.send_simulated()
         elif self.api_type == 'UptimeKuma':
-            self.send_to_uptime_kuma(metrics)
+            self.send_to_uptime_kuma()
         else:
             logging.error("Unknown api_type! Sending simulated!")
-            self.send_simulated(metrics)
+            self.send_simulated()
         self.last_notify_time = time.time()
 
-    def send_simulated(self, metrics):
+    def send_simulated(self):
         logging.info("Doing a simulated send of:")
-        self.pretty_print_metrics(metrics)
+        self.pretty_print_metrics()
         logging.info("Successful simulated send")
 
-    def send_to_uptime_kuma(self, metrics):
+    def send_to_uptime_kuma(self):
+        metrics = self.metrics
 
         # extract what we need for UptimeKuma:
         status = "up"
@@ -199,7 +203,6 @@ class BeaconAgent:
                     label, disk = item
                     kuma_text += f"Disk {label} FAILED. "
 
-        containers_not_running = []
         if 'docker_projects' in metrics:
             containers_not_running = dict(
                 filter(self.is_container_not_running, metrics['docker_projects'].items()))
@@ -235,6 +238,8 @@ class BeaconAgent:
                     for lxc in lxc_not_running:
                         kuma_text += f"LXC {lxc['name']} state={lxc['status']}. "
 
+        kuma_text += f"Agent:{AGENT_VERSION}"
+
         encoded = quote(kuma_text)
         url = f"{self.api_url}/{self.api_key}?status={status}&msg={encoded}&ping={self.latency}"
         if logging.getLogger().isEnabledFor(logging.DEBUG):
@@ -250,9 +255,8 @@ class BeaconAgent:
         except requests.exceptions.RequestException as e:
             logging.info(f"Error sending data: {e}")
 
-    @staticmethod
-    def pretty_print_metrics(metrics):
-        logging.info(json.dumps(metrics, indent=2))
+    def pretty_print_metrics(self):
+        logging.info(json.dumps(self.metrics, indent=2))
 
 
 def main():

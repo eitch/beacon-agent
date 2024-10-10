@@ -8,7 +8,7 @@ DIST="${SOURCE_DIR}/dist"
 TARGET="${DIST}/${PACKAGE_NAME}"
 DATE="$(date +"%Y-%m-%d %H:%M:%S")"
 # shellcheck disable=SC2002
-VERSION="$(cat setup.py | grep version= | tr -d '"' | tr -d , | cut -d '=' -f 2)"
+VERSION="$(grep "AGENT_VERSION=" "${SOURCE_DIR}/beacon_agent/__init__.py" | tr -d '"' | tr -d , | cut -d '=' -f 2)"
 
 echo "INFO: Building package ${PACKAGE_NAME} with version ${VERSION}"
 

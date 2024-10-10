@@ -1,17 +1,12 @@
 #!/bin/bash -e
+SOURCE_DIR="$(cd ${0%/*} ; pwd)"
 
 PACKAGE_NAME="beacon-agent"
 
 # Function to parse the version from the setup.py file
 get_version() {
-  local setup_file="setup.py"
-  if [ -f "$setup_file" ]; then
-    version=$(grep -Po "(?<=version=\")[^\"]*" "$setup_file")
-    echo "${version}"
-  else
-    echo "Error: setup.py file not found!"
-    exit 1
-  fi
+  version=$(grep "AGENT_VERSION=" "${SOURCE_DIR}/beacon_agent/__init__.py" | tr -d '"' | tr -d , | cut -d '=' -f 2)
+  echo "${version}"
 }
 
 # Get the version
