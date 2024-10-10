@@ -58,30 +58,33 @@ class BeaconAgent:
     def is_vm_lxc_not_running(vm_lxc):
         return vm_lxc['status'] != "running"
 
+    def _read_metrics(self):
+        start = time.time()
+        self.metrics = self.system_metrics_reader.get_system_metrics()
+        self.metrics["version"] = AGENT_VERSION
+        self.latency = round(time.time() - start, 3)
+        logging.info(f"Metrics refresh took {self.latency}s")
+
     def monitor_system(self):
         logging.info(f"Beacon-Agent started and refreshing system state every {self.refresh_interval_seconds}s")
 
         # Send metrics once on startup
-        self.metrics = self.system_metrics_reader.get_system_metrics()
+        self._read_metrics()
         self.send_metrics()
         logging.info(f"Initial system state sent.")
 
         while True:
-            start = time.time()
-            self.metrics = self.system_metrics_reader.get_system_metrics()
-            self.metrics["version"] = AGENT_VERSION
-            self.latency = round(time.time() - start, 3)
-            logging.info(f"Metrics refresh took {self.latency}s")
+            self._read_metrics()
 
             last_notify_delay = time.time() - self.last_notify_time
-            threshold_reached = self.threshold_reached()
+            threshold_reached = self._threshold_reached()
             if last_notify_delay > self.notify_delay_seconds or threshold_reached or (
                     not threshold_reached and self.previous_threshold_nok):
                 self.previous_threshold_nok = threshold_reached
                 self.send_metrics()
             time.sleep(self.refresh_interval_seconds)
 
-    def threshold_reached(self) -> bool:
+    def _threshold_reached(self) -> bool:
         cpu_threshold = self.metrics['cpu_load_percent'] > self.notify_threshold_percent
         memory_threshold = self.metrics['memory_info']['percent']
 
@@ -147,20 +150,20 @@ class BeaconAgent:
 
     def send_metrics(self):
         if self.api_type == 'Simulated':
-            self.send_simulated()
+            self._send_simulated()
         elif self.api_type == 'UptimeKuma':
-            self.send_to_uptime_kuma()
+            self._send_to_uptime_kuma()
         else:
             logging.error("Unknown api_type! Sending simulated!")
-            self.send_simulated()
+            self._send_simulated()
         self.last_notify_time = time.time()
 
-    def send_simulated(self):
+    def _send_simulated(self):
         logging.info("Doing a simulated send of:")
-        self.pretty_print_metrics()
+        self._pretty_print_metrics()
         logging.info("Successful simulated send")
 
-    def send_to_uptime_kuma(self):
+    def _send_to_uptime_kuma(self):
         metrics = self.metrics
 
         # extract what we need for UptimeKuma:
@@ -255,7 +258,7 @@ class BeaconAgent:
         except requests.exceptions.RequestException as e:
             logging.info(f"Error sending data: {e}")
 
-    def pretty_print_metrics(self):
+    def _pretty_print_metrics(self):
         logging.info(json.dumps(self.metrics, indent=2))
 
 
