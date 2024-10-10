@@ -1,3 +1,4 @@
+import json
 import subprocess
 import re
 import time
@@ -222,6 +223,7 @@ class SystemMetricsReader:
             return self.count_upgradable_packages_apt()
         if shutil.which("synopkg") is not None:
             return self.count_upgradable_packages_synopkg()
+        return 0, 0
 
     @staticmethod
     def count_upgradable_packages_synopkg():
@@ -232,22 +234,18 @@ class SystemMetricsReader:
         try:
             # Run the command to simulate upgrade and capture the output
             start_time = time.time()
-            result = subprocess.run(['synopkg', 'chkupgradepkg'], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            result = subprocess.run(['synopkg', 'checkupdateall'], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                     text=True)
             elapsed_time = time.time() - start_time
             if elapsed_time > 3:
                 logging.debug(f"Process took: {elapsed_time:.3f} seconds")
 
             # Split the output into lines
-            lines = result.stdout.strip().split('\n')
+            data = json.loads(result.stdout)
 
-            # Initialize counts
-            security_count = 0
+            # all packages are security packages on Synology
+            security_count = len(data)
             non_security_count = 0
-
-            for line in lines:
-                if '->' in line:
-                    security_count += 1
 
             return security_count, non_security_count
 
