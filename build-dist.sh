@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -e
 
 PACKAGE_NAME="beacon-agent"
 
@@ -29,6 +29,7 @@ INCLUDE_ITEMS=(
   "SYSTEMD"
   "beacon_agent_main.py"
   "run.sh"
+  "install_systemd.sh"
   "example_config.json"
 )
 
@@ -52,3 +53,4 @@ tar --exclude='__pycache__' -czvf "${OUTPUT_TARBALL}" -C "${TMP_DIR}" .
 rm -rf "${TMP_DIR}"
 
 echo "Tarball $OUTPUT_TARBALL created successfully."
+exit 0
