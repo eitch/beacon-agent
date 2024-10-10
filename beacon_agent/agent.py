@@ -87,11 +87,13 @@ class BeaconAgent:
         logging.debug(
             f"Most filled file system is mounted on {most_filled_fs['mount_point']} at {most_filled_fs['used_percent']}% used")
 
-        disks_with_critical_warnings = dict(
-            filter(self.has_smart_critical_warning, metrics['smart_monitor_data'].items()))
-        if disks_with_critical_warnings:
-            logging.warning(
-                f"The following disks have a critical warning: {', '.join(disks_with_critical_warnings.keys())}")
+        disks_with_critical_warnings = []
+        if 'smart_monitor_data' in metrics:
+            disks_with_critical_warnings = dict(
+                filter(self.has_smart_critical_warning, metrics['smart_monitor_data'].items()))
+            if disks_with_critical_warnings:
+                logging.warning(
+                    f"The following disks have a critical warning: {', '.join(disks_with_critical_warnings.keys())}")
 
         containers_not_running = []
         if 'docker_projects' in metrics:
@@ -180,22 +182,24 @@ class BeaconAgent:
         if status == "up":
             kuma_text += "CPU, RAM and Disks OK. "
 
-        security_upgrade_count = metrics["package_security_upgrade_count"]
-        if security_upgrade_count == 0:
-            kuma_text += "No security package require upgrading. "
-        else:
-            status = "down"
-            kuma_text += f"{security_upgrade_count} security package require upgrading! "
+        if 'package_security_upgrade_count' in metrics:
+            security_upgrade_count = metrics["package_security_upgrade_count"]
+            if security_upgrade_count == 0:
+                kuma_text += "No security package require upgrading. "
+            else:
+                status = "down"
+                kuma_text += f"{security_upgrade_count} security package require upgrading! "
 
-        disks_with_critical_warnings = dict(
-            filter(self.has_smart_critical_warning, metrics['smart_monitor_data'].items()))
-        if len(disks_with_critical_warnings) == 0:
-            kuma_text += "All disks OK. "
-        else:
-            status = "down"
-            for item in disks_with_critical_warnings.items():
-                label, disk = item
-                kuma_text += f"Disk {label} FAILED. "
+        if 'smart_monitor_data' in metrics:
+            disks_with_critical_warnings = dict(
+                filter(self.has_smart_critical_warning, metrics['smart_monitor_data'].items()))
+            if len(disks_with_critical_warnings) == 0:
+                kuma_text += "All disks OK. "
+            else:
+                status = "down"
+                for item in disks_with_critical_warnings.items():
+                    label, disk = item
+                    kuma_text += f"Disk {label} FAILED. "
 
         containers_not_running = []
         if 'docker_projects' in metrics:
