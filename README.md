@@ -1,4 +1,63 @@
-# Readme
+# Beacon Agent
+
+This agent is used to monitor the state of a system and send periodic updates, or updates on thresholds reached to a remote server which in turn then will notify a user so they can take action.
+
+Beacon Agent currently implements pushing the status to a UptimeKuma server, which can then send push notifications to a user using for example Gotify.
+
+The Beacon Agent currently has the following features:
+- Read basic system info like CPU load, Memory and Disk usage
+- Check for any required security packages requiring upgrading
+- Read S.M.A.R.T. values of SATA, SCSCI and NVME disks
+- Validate disks are consecutive, i.e. no disk fails completely during system runtime
+- On Docker hosts: Validate all docker containers currently known are in state running
+- On Proxmox hosts: Validate all virtual machines and LX containers are in state running
+
+## Example
+
+![example_UptimeKuma.png](doc/example_UptimeKuma.png) 
+
+# Requirements
+The agent is written in Python and is known to work on Python 3.8. The agent has been tested on the following servers:
+- Proxmox 7.x
+- Ubuntu 22.04
+- Synology NAS DSM 7.2.x
+
+# Configuration
+Configure your `config.json`, by updating the relevant fields:
+
+    {
+      "agent": {
+        "api_type": "UptimeKuma",
+        "api_url": "https://status.example.ch/api/push",
+        "api_key": "your_api_key_here",
+        "refresh_interval_seconds": 10,
+        "notify_delay_minutes": 10,
+        "notify_threshold_percent": 90
+      },
+      "system_metrics": {},
+      "smartctl": {
+        "enabled": true
+      },
+      "docker": {
+        "enabled": true
+      },
+      "proxmox": {
+        "enabled": true,
+        "token_id": "",
+        "token_secret": ""
+      }
+    }
+
+Currently `api_type` can be one of `UptimeKuma` or `Simulated`.
+
+To disable a reader, simply delete the section in the config file, or set `enabled` to `false`.
+
+After modifying the file, restart the systemd service:
+
+    sudo systemctl restart beacon-agent.service
+
+
+# Installation
 
 ## Debian systems
 Build debian package:
@@ -65,33 +124,3 @@ To remove the agent, use the following commands:
     sudo systemctl stop beacon-agent.service
     sudo rm /etc/systemd/system/beacon-agent.service
     sudo rm -rf /usr/local/lib/beacon-agent
-
-## Configuration
-Configure your `config.json`, by updating the relevant fields:
-
-    {
-      "agent": {
-        "api_type": "UptimeKuma",
-        "api_url": "https://status.example.ch/api/push",
-        "api_key": "your_api_key_here",
-        "refresh_interval_seconds": 10,
-        "notify_delay_minutes": 10,
-        "notify_threshold_percent": 90
-      },
-      "system_metrics": {},
-      "smartctl": {
-        "enabled": true
-      },
-      "docker": {
-        "enabled": true
-      },
-      "proxmox": {
-        "enabled": true,
-        "token_id": "",
-        "token_secret": ""
-      }
-    }
-
-After modifying the file, restart the systemd service:
-
-    sudo systemctl restart beacon-agent.service
