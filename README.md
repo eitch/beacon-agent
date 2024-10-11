@@ -2,7 +2,7 @@
 
 This agent is used to monitor the state of a system and send periodic updates, or updates on thresholds reached to a remote server which in turn then will notify a user so they can take action.
 
-Beacon Agent currently implements pushing the status to a UptimeKuma server, which can then send push notifications to a user using for example Gotify.
+Beacon Agent currently implements pushing the status to a [UptimeKuma](https://uptime.kuma.pet/) server, which can then send push notifications to a user using for example [Gotify](https://gotify.net/).
 
 The Beacon Agent currently has the following features:
 - Read basic system info like CPU load, Memory and Disk usage
