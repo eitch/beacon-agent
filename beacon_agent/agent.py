@@ -122,15 +122,14 @@ class BeaconAgent:
             proxmox_data = self.metrics["proxmox_data"]
 
             if 'vms' in proxmox_data:
-                vms_not_running = dict(
-                    filter(self.is_vm_lxc_not_running, proxmox_data['vms']))
+                vms_not_running = {vm['name']: vm for vm in proxmox_data['vms'] if self.is_vm_lxc_not_running(vm)}
                 if vms_not_running:
                     logging.warning(
                         f"The following VMs are not running: {', '.join(vms_not_running.keys())}")
 
             if 'containers' in proxmox_data:
-                lxc_not_running = dict(
-                    filter(self.is_vm_lxc_not_running, proxmox_data['containers']))
+                lxc_not_running = {lxc['name']: lxc for lxc in proxmox_data['containers'] if
+                                   self.is_vm_lxc_not_running(lxc)}
                 if lxc_not_running:
                     logging.warning(
                         f"The following LXCs are not running: {', '.join(lxc_not_running.keys())}")
@@ -234,24 +233,25 @@ class BeaconAgent:
         if "proxmox_data" in metrics:
             proxmox_data = metrics["proxmox_data"]
             if 'vms' in proxmox_data:
-                vms_not_running = dict(
-                    filter(self.is_vm_lxc_not_running, proxmox_data['vms']))
+                vms_not_running = {vm['name']: vm for vm in proxmox_data['vms'] if self.is_vm_lxc_not_running(vm)}
                 if len(vms_not_running) == 0:
                     kuma_text += "All VMs running. "
                 else:
                     status = "down"
-                    for vm in vms_not_running:
-                        kuma_text += f"VM {vm['name']} state={vm['status']}. "
+                    for item in vms_not_running.items():
+                        label, vm = item
+                        kuma_text += f"VM {label} state={vm['status']}. "
 
             if 'containers' in proxmox_data:
-                lxc_not_running = dict(
-                    filter(self.is_vm_lxc_not_running, proxmox_data['containers']))
+                lxc_not_running = {lxc['name']: lxc for lxc in proxmox_data['containers'] if
+                                   self.is_vm_lxc_not_running(lxc)}
                 if len(lxc_not_running) == 0:
                     kuma_text += "All LXCs running. "
                 else:
                     status = "down"
-                    for lxc in lxc_not_running:
-                        kuma_text += f"LXC {lxc['name']} state={lxc['status']}. "
+                    for item in lxc_not_running.items():
+                        label, lxc = item
+                        kuma_text += f"LXC {label} state={lxc['status']}. "
 
         kuma_text += f"Agent:{AGENT_VERSION}"
 
