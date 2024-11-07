@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="beacon_agent",
-    version="0.3.0",
+    version="0.2.3",
     author="Robert von Burg",
     author_email="eitch@eitchnet.ch",
     description="This is the python agent for UptimeBeacon",

@@ -1,3 +1,32 @@
+beacon-agent (0.2.3) stable; urgency=low
+
+  * Fix for parsing stopped proxmox VMs and containers
+  * Added checking if a component set an error message
+
+ -- Robert von Burg <eitch@eitchnet.ch>  Thu, 07 Nov 2024 11:34:18 +0100
+
+beacon-agent (0.2.2) stable; urgency=low
+
+  * This fixes an issue where an error from a read, e.g. SmartCtlReader didn't trigger a down on UptimeKuma.
+
+ -- Robert von Burg <eitch@eitchnet.ch>  Wed, 20 Sep 2023 12:00:00 +0000
+
+beacon-agent (0.2.1) stable; urgency=low
+
+  * Fixed bad return value in read_smartdata_for_all_devices()
+
+ -- Robert von Burg <eitch@eitchnet.ch>  Thu, 10 Oct 2024 14:44:00 +0200
+
+beacon-agent (0.2.0) stable; urgency=low
+
+  * Added verification for missing disks
+  * added upgrade process
+  * Supporting S.M.A.R.T by disk
+  * Fixed version for Synology NAS
+  * Fixed package count on Synology NAS
+
+ -- Robert von Burg <eitch@eitchnet.ch>  Thu, 10 Oct 2024 14:32:00 +0200
+
 beacon-agent (0.1.0) stable; urgency=low
 
   * Initial release
