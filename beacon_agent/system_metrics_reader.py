@@ -41,14 +41,13 @@ class SystemMetricsReader:
 
         # Initialize a list to hold the dictionary entries
         df_dict = []
+        loop_devices = []
 
         # Iterate over the remaining lines and parse each line
         for line in lines[1:]:
             values = line.split()
 
-            if values[0] in ['overlay', 'tmpfs', 'efivarfs', 'devtmpfs', 'none', 'loop']:
-                continue
-            if '/dev/loop' in values[0]:
+            if values[0] in ['overlay', 'tmpfs', 'efivarfs', 'devtmpfs', 'none']:
                 continue
 
             df_entry = {
@@ -59,7 +58,14 @@ class SystemMetricsReader:
                 'mount_point': values[5]
             }
 
-            df_dict.append(df_entry)
+            if '/dev/loop' in values[0]:
+                loop_devices.append(df_entry)
+            else:
+                df_dict.append(df_entry)
+
+        # If no non-loop devices exist, use loop devices
+        if not df_dict:
+            df_dict = loop_devices
 
         df_dict = sorted(df_dict, key=lambda x: x['mount_point'])
         return df_dict
