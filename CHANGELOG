@@ -1,3 +1,9 @@
+beacon-agent (0.2.5) stable; urgency=low
+
+  * Allow ignoring of VMs or containers not running.
+
+ -- Robert von Burg <eitch@eitchnet.ch>  Thu, 13 Nov 2025 19:06:19 +0100
+
 beacon-agent (0.2.4) stable; urgency=low
 
   * Fix for handling root FS being on a loop device

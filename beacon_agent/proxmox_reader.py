@@ -18,6 +18,9 @@ class ProxmoxReader:
         token_id = config.get_config_value(["proxmox", "token_id"])
         token_secret = config.get_config_value(["proxmox", "token_secret"])
 
+        # List of VM/LXC names (or IDs as strings) to ignore when they are not running
+        self.ignored_vms_lxcs = config.get_config_value(["proxmox", "ignored_vms_lxcs"], default=[])
+
         if shutil.which('pveversion') is None:
             logging.error("pveversion not found, this is not a Proxmox Node.")
             self.enabled = False
@@ -52,6 +55,47 @@ class ProxmoxReader:
         response.raise_for_status()
         return response.json()['data']
 
+    def _should_include_item(self, item):
+        """
+        Determines whether a VM/LXC item should be included based on the
+        ignored list and its running status.
+
+        Rules:
+        - If the item name (or vmid as string) is present in ignored_vms_lxcs
+          AND the item is not running, it will be ignored (excluded).
+        - In all other cases, it will be included.
+        """
+        try:
+            name = item.get('name') or item.get('hostname')
+        except AttributeError:
+            name = None
+        vmid = None
+        try:
+            vmid = item.get('vmid')
+        except AttributeError:
+            vmid = None
+
+        # Normalize to strings for comparison
+        candidates = set()
+        if name:
+            candidates.add(str(name))
+        if vmid is not None:
+            candidates.add(str(vmid))
+
+        status = None
+        try:
+            status = item.get('status')
+        except AttributeError:
+            status = None
+
+        is_listed = any(c in self.ignored_vms_lxcs for c in candidates)
+        is_running = (status == 'running')
+
+        if is_listed and not is_running:
+            logging.debug(f"Ignoring non-running item listed in ignored_vms_lxcs: {candidates} (status={status})")
+            return False
+        return True
+
     def read_proxmox_data(self):
         if not self.enabled:
             return None
@@ -83,6 +127,16 @@ class ProxmoxReader:
                 self.proxmox_data = {"error": f"An unexpected error occurred: {str(e)}"}
             return self.proxmox_data
 
+        # Apply filtering based on ignored list for non-running items
+        try:
+            vms = [vm for vm in vms if self._should_include_item(vm)]
+        except Exception as e:
+            logging.error(f"Error while filtering VMs: {e}")
+        try:
+            containers = [ct for ct in containers if self._should_include_item(ct)]
+        except Exception as e:
+            logging.error(f"Error while filtering containers: {e}")
+
         self.proxmox_data = {
             'name': self.node_name,
             'vms': vms,
@@ -97,6 +151,7 @@ class ProxmoxReader:
 if __name__ == "__main__":
     from .custom_logging import CustomLogging
     from .agent_config import AgentConfig
+
     custom_logging = CustomLogging()
     custom_logging.configure_logging()
 

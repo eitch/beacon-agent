@@ -56,8 +56,12 @@ dpkg-deb -Zgzip --root-owner-group --build ${PACKAGE_NAME}
 mv "${PACKAGE_NAME}.deb" "${PACKAGE_NAME}-${VERSION}.deb"
 
 # and validate the package
-echo -e "INFO: Now running lintian..."
-lintian --fail-on error,warning -i "${PACKAGE_NAME}-${VERSION}.deb"
+if which lintian > /dev/null ; then
+  echo -e "INFO: Now running lintian..."
+  lintian --fail-on error,warning -i "${PACKAGE_NAME}-${VERSION}.deb"
+else
+  echo -e "WARN: lintian not available, ignoring."
+fi
 
 echo "INFO: Successfully built ${PACKAGE_NAME}-${VERSION}.deb"
 exit 0

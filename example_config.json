@@ -17,6 +17,7 @@
   "proxmox": {
     "enabled": true,
     "token_id": "",
-    "token_secret": ""
+    "token_secret": "",
+    "ignored_vms_lxcs" : []
   }
 }
